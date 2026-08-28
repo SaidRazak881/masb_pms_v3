@@ -1,0 +1,1 @@
+export default function DashboardLoading(){return <main className='p-6'><div className='h-10 w-56 animate-pulse rounded-lg bg-slate-200'/><div className='mt-6 h-28 animate-pulse rounded-xl border bg-slate-100'/></main>}

@@ -1,0 +1,5 @@
+-- 2026 workbook data seed is generated and applied by the release process.
+-- This migration file intentionally contains only the deterministic seed marker;
+-- source workbooks are not committed to the repository.
+-- The production load was performed from invoice_2026.xlsx and
+-- sales_report_2026-08-19.xlsx against the configured Supabase project.

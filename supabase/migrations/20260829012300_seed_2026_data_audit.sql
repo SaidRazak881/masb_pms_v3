@@ -1,0 +1,7 @@
+-- Data-load audit marker for the 2026 workbook import.
+-- Source files: sales_report_2026-08-19.xlsx (156 rows), invoice_2026.xlsx (29 rows).
+-- Loaded into the configured production Supabase database on 2026-08-29.
+-- Result: 127 companies, 183 programs, 21 quotations, 1 purchase order,
+-- 29 invoices, 15 payment records, and 29 training sessions.
+-- Two PAID source rows had no payment date and therefore correctly produced no payment row.
+-- Invoice rows without an invoice number receive deterministic PENDING-2026-NNN identifiers.

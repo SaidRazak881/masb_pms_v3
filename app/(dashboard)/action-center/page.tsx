@@ -1,0 +1,7 @@
+import { createClient } from '@/lib/supabase/server'
+
+export default async function ActionCenter(){
+  const supabase=await createClient()
+  const {data}=await supabase.from('vw_action_required').select('*').order('days_outstanding',{ascending:false})
+  return <div className='p-6'><h1 className='text-2xl font-bold'>Action Center</h1><p className='mt-1 text-sm text-slate-500'>Keutamaan tindakan yang dijana daripada data operasi.</p><div className='mt-6 overflow-hidden rounded-xl border bg-white'><table className='w-full text-sm'><thead className='bg-slate-50'><tr><th className='p-3 text-left'>Priority</th><th className='p-3 text-left'>Category</th><th className='p-3 text-left'>Program</th><th className='p-3 text-left'>Company</th><th className='p-3 text-right'>Amount</th><th className='p-3 text-right'>Days</th></tr></thead><tbody>{(data??[]).map((r:any)=><tr key={r.record_id} className='border-t'><td className='p-3 font-semibold'>{r.priority}</td><td className='p-3'>{r.category}</td><td className='p-3'>{r.program_code??'—'}</td><td className='p-3'>{r.company_name??'—'}</td><td className='p-3 text-right'>{r.amount==null?'—':`RM ${Number(r.amount).toLocaleString('en-MY',{minimumFractionDigits:2})}`}</td><td className='p-3 text-right'>{r.days_outstanding??'—'}</td></tr>)}</tbody></table></div></div>
+}

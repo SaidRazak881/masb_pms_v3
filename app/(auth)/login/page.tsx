@@ -1,0 +1,5 @@
+import { signIn } from "@/app/(auth)/actions";
+export default async function LoginPage({searchParams}:{searchParams:Promise<{error?:string}>}) {
+  const {error}=await searchParams;
+  return <main className="min-h-screen grid place-items-center bg-slate-950 p-6"><div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl"><div className="mb-8"><p className="text-sm font-semibold text-sky-700">MIMOS ACADEMY</p><h1 className="mt-2 text-3xl font-bold text-slate-900">Program Management System</h1><p className="mt-2 text-sm text-slate-500">Sign in with your Supabase Auth account.</p></div>{error&&<div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}<form action={signIn} className="space-y-4"><label className="block text-sm font-medium">Email<input name="email" type="email" required className="mt-1 w-full rounded-lg border p-3" /></label><label className="block text-sm font-medium">Password<input name="password" type="password" required className="mt-1 w-full rounded-lg border p-3" /></label><button className="w-full rounded-lg bg-slate-900 p-3 font-semibold text-white hover:bg-slate-800">Sign in</button></form></div></main>;
+}

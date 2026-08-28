@@ -1,0 +1,1 @@
+export default function Loading(){return <main className='flex min-h-screen items-center justify-center p-6'><div className='rounded-xl border bg-white px-6 py-4 text-sm text-slate-600 shadow-sm'>Loading…</div></main>}

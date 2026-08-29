@@ -22,6 +22,7 @@ type Metric = {
 type DashboardOverviewProps = {
   metrics: Metric[]
   actions: ActionRow[]
+  overdueAmount: number
 }
 
 export const dashboardMetricIcons = {
@@ -39,8 +40,7 @@ function priorityClass(priority: string | null) {
   }
 }
 
-export function DashboardOverview({ metrics, actions }: DashboardOverviewProps) {
-  const overdueAmount = actions.reduce((sum, row) => sum + (row.category?.toUpperCase() === 'OVERDUE' ? Number(row.amount ?? 0) : 0), 0)
+export function DashboardOverview({ metrics, actions, overdueAmount }: DashboardOverviewProps) {
   const highPriority = actions.filter((row) => row.priority?.toUpperCase() === 'HIGH').length
 
   return (

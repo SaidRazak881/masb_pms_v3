@@ -43,8 +43,12 @@ function candidates(row: StagingRow): ExceptionCandidate[] {
   if (validation.includes('MISSING_COMPANY')) add('MISSING_COMPANY', 'MEDIUM', 'Company is missing from source row.')
   if (validation.includes('MISSING_INVOICE_NUMBER')) add('MISSING_INVOICE_NUMBER', 'HIGH', 'Invoice number is missing from source row.')
   if (validation.includes('INVALID_STATUS')) add('INVALID_STATUS', 'MEDIUM', 'Source status is invalid.')
-  if (text(metadata.duplicate)?.toLowerCase() === 'true') add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
-  if (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS' || row.matching_status === 'PENDING') add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
+  const isDuplicate = text(metadata.duplicate)?.toLowerCase() === 'true'
+  if (isDuplicate) add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
+  // A genuinely unmatched row is NONE or AMBIGUOUS. Duplicate rows are reported
+  // as DUPLICATE (not UNMATCHED) to avoid double-counting; PENDING means the
+  // matching step has not run yet, so it is not an exception.
+  if (!isDuplicate && (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS')) add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
   return result
 }
 

@@ -138,68 +138,88 @@ select to_regclass('public.import_commit_log');
 lulus. Kau WAJIB regenerate rasmi supaya ia `exact match` dengan **Postgres PRODUCTION
 sebenar** (selepas T1 + T1b, bukan sebelum).
 
-1. **PULL & BRANCH dulu** (pastikan fail `types/database.ts` yang lama di-overwrite):
-   ```bash
-   git pull origin arena/01a04daa-masb-pms-v3
-   ```
-2. **Regenerate terus ke fail**:
-   ```bash
-   supabase gen types typescript --project-id <PROJECT_REF> > types/database.ts
-   git add types/database.ts && git commit -m "types: regenerate from production schema" && git push origin arena/01a04daa-masb-pms-v3
-   ```
-3. **Sahkan masih hijau**:
-   ```bash
-   npm run typecheck
-   npm run build
-   ```
+**Kau kata connector kau tak boleh menulis fail dengan output generated. Itu OK —
+jangan tulis fail.** Sebaliknya, **taip `/paste` kandungan penuh** `types/database.ts`
+yang dijana oleh `supabase gen types` dalam laporan kau. Arena agent akan commit ke repo.
+Jangan edit/potong kandungan — MESTI penuh (`18 tables + 4 views + 3 functions`).
 
-> Nota penting: sebelum ini kau kata output generated "tidak boleh disalurkan terus
-> sebagai fail melalui connector". Itu satu batasan tool, BUKAN masalah repo. Kalau kau
-> tak boleh tulis fail, **paste kandungan penuh `types/database.ts` yang dijana** dalam
-> laporan supaya Arena agent boleh write ke repo. TAPI lebih baik commit terus via `git`.
+1. **Jana output rasmi** (jangan redirect ke fail):
+   ```bash
+   supabase gen types typescript --project-id <PROJECT_REF>
+   ```
+2. **Salin keseluruhan output** (dari `export type Json=...` hingga `export type Enums<...>`)
+   dan letak dalam laporan di bawah tajuk `### T2 OUTPUT TYPES`.
+3. Arena agent akan:
+   - tulis output itu ke `types/database.ts`
+   - jalankan `npm run typecheck` + `npm run build`
+   - commit + push.
 
-**✅ Bukti:** `npm run typecheck` dan `npm run build` lulus, dan `types/database.ts`
-mencerminkan kolum production sebenar (18 tables, 4 views, `current_user_role`).
+**Nota penting (sepadan laporan kau):** `participant_counts.category` adalah `text`,
+BUKAN PostgreSQL enum — jadi dalam generated output ia `category: string` (bukan
+`ParticipantCategory`). Arena agent sudah betulkan versi manual kepada `string`.
+Jangan tambah enum tersendiri.
+
+**✅ Bukti:** laporan mengandungi **output penuh** generated types (18 tables, 4 views,
+3 functions: `current_user_role`, `commit_import_batch`, `rollback_import_batch`).
 
 ---
 
-## T3. E2E TEST IMPORT (SANGAT PENTING — GUNA BATCH STAGING, BUKAN PRODUCTION)
+## T3. E2E TEST IMPORT (BAHAGIAN SELAMAT PUN BOLEH ATAS PRODUCTION)
 
-Aliran yang betul ialah **3 endpoint berasingan, dalam urutan tetap**:
+**PENTING — JANGAN commit domain data ke production. TETAPI:** langkah `import` →
+`match-engine` → `match` **SELAMAT atas production** kerana ia hanya menulis ke jadual
+staging (`import_batches`, `import_staging`) — TIDAK menyentuh jadual domain
+(`quotations`, `invoices`, `cost_of_sales`, dll). Jadi kau boleh sahkan pipa resolution
+atas production tanpa risiko.
+
+Aliran yang betul (3 endpoint berasingan, urutan tetap):
 
 ```
 Excel
   → POST /api/import/{source}                (parser → import_staging, status 'STAGED')
   → POST /api/import/{batchId}/match-engine  (Matching Engine: set matching_status EXACT/ALIAS/COMPOSITE/NONE/AMBIGUOUS)
   → POST /api/import/{batchId}/match         (Matching Resolution: set target_table/target_record_id/matching_confidence/matching_rule)
-  → POST /api/import/commit                  (Commit Engine: insert ke domain tables)
+  → POST /api/import/commit                  (Commit Engine: insert ke domain tables) — ⚠️ JANGAN pada production
 ```
 
 **JANGAN SKIP `match-engine`.** Tanpa ia, `matching_status` kekal `PENDING`, dan route
 `/match` akan return `resolved = 0` (silent no-op).
 
 **Langkah (ulang untuk setiap fail berikut):**
-- `00. Quotation Tracker (1).xlsx` → buat batch via `POST /api/import/quotations`
-- `invoice_2026.xlsx` → `POST /api/import/invoices`
+- `invoice_2026.xlsx` → buat batch via `POST /api/import/invoices`
 - `cost_of_sales_2026.xlsx` → `POST /api/import/cost-of-sales`
+- `00. Quotation Tracker (1).xlsx` → `POST /api/import/quotations`
 
 Untuk **setiap** fail:
 1. `POST /api/import/{source}` → dapatkan `batchId`. Lapor `x rows staged`.
 2. `POST /api/import/{batchId}/match-engine` → lapor
    `{ total, matched, ambiguous, unmatched, duplicates }`. **`matched` mesti > 0.**
 3. `POST /api/import/{batchId}/match` → lapor `{ total, resolved, unresolved }`.
-   **Jika `resolved = 0`, berhenti — jangan commit; ini tanda `match-engine` belum dijalankan.**
-4. `POST /api/import/commit` → lapor
-   `{ affected_records, inserted_quotations, inserted_invoices, inserted_cost_of_sales }`.
-5. Sahkan dalam DB (contoh): `select count(*) from public.quotations;` dan keadaan
-   `import_staging.matching_status`/`target_table`/`target_record_id` untuk batch itu.
+   **Jika `resolved = 0`, berhenti — ini tanda `match-engine` belum dijalankan.**
+4. **Sahkan dalam DB (tidak merosakkan):**
+   ```sql
+   select match_status, target_table, target_record_id, matching_rule, matching_confidence
+   from public.import_staging where batch_id='<batchId>' limit 5;
+   ```
+   Sahkan `target_table`/`target_record_id`/`matching_rule`/`matching_confidence`
+   terisi betul untuk quotation / invoice / cost_of_sales. Inilah bukti T3.
 
-**✅ Bukti untuk lapor balik setiap fail:** `x staged`, `y matched`, `z resolved`,
-dan `n inserted_quotations / inserted_invoices / inserted_cost_of_sales`.
+**Untuk mengesahkan step commit (TIDAK boleh buat terus atas production):**
+- **Pilihan A (disyorkan):** cipta **Supabase Preview Branch** (staging) dan jalan
+  `POST /api/import/{batchId}/commit` di situ. Lapor `inserted_*`.
+- **Pilihan B:** jalankan **manual transaction dengan ROLLBACK** atas production:
+  ```sql
+  begin;
+  select public.commit_import_batch('<batchId>');
+  -- semak inserted_* melalui return
+  rollback;   -- tidak persist apa-apa
+  ```
+  Ini membuktikan commit engine berfungsi TANPA menulis data domain kekal.
 
-> **Amalan selamat:** lakukan pada **staging/preview DB** dahulu. Jangan commit ke
-> production sehingga `inserted_*` betul. Jika ada `data_quality_exceptions`, resolusi
-> via `POST /api/import/exceptions` dahulu.
+**✅ Bukti untuk lapor balik setiap fail:** `x staged`, `y matched`, `z resolved`, dan
+**screenshot/query output** `import_staging` yang menunjukkan `target_table` +
+`target_record_id` + `matching_rule` terisi. Untuk commit: bukti `inserted_*` dari
+Preview Branch ATAU hasil `commit_import_batch` dalam transaction yang di-ROLLBACK.
 
 ---
 

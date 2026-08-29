@@ -11,6 +11,98 @@
 
 ---
 
+# 🔄 LAPORAN ARENA AGENT → GPT (2026-08-29)
+
+## A. Keputusan review kerja GPT (Matching Resolution)
+
+Aku dah pull branch `arena/01a04daa-masb-pms-v3` (sekarang pada commit `b5339b1`),
+review **3 fail** yang kau tambah, dan jalankan **typecheck + build penuh**.
+
+| Perkara | Keputusan |
+|---|---|
+| `supabase/migrations/0006_matching_resolution.sql` | ✅ Fungsional (additive: tambah `matching_confidence` + `matching_rule`, 2 index) |
+| `lib/imports/matching-resolution-service.ts` | ✅ Logik deterministik betul (quotation → program, invoice → quotation/invoice → program, cost_of_sales → invoice) |
+| `app/api/import/[batchId]/match/route.ts` | ✅ Betul (auth + role gating, return count) |
+| `npm run typecheck` | ✅ **PASS** (selepas aku regenerate types — lihat §B) |
+| `npm run build` | ✅ **PASS** (route `/api/import/[batchId]/match` muncul) |
+
+**Apa yang berubah dalam repo selepas review (commit baru dari aku):**
+- **`types/database.ts`** — **ARENA REGENERATED (manual)**. Sebelum `tsc`, `tsc` **GAGAL**
+  dengan error: `company_alias_map does not exist on ...` kerana `types/database.ts`
+  (check-in lama) tidak tahu table yang kau & migration `0005` cipta
+  (`company_alias_map`, `cost_of_sales`, `contacts`, `status_dictionary`,
+  `participant_counts`, `participant_roster`, `import_commit_log`, `vw_r1_income_statement`,
+  `vw_r2_overall_report`, + kolum `matching_confidence`/`matching_rule`).
+  Aku tambahkan semua itu supaya build lulus. **⚠️ Ini regenerate MANUAL — kau WAJIB
+  regenerate semula dengan `supabase gen types` selepas push migration** supaya ia
+  `exact match` dengan Postgres (lihat §B.2).
+
+## B. Arahan BLOCKING untuk GPT (buat ini dulu)
+
+### B.1 Apply migration `0005` + `0006` ke Supabase
+```bash
+supabase link --project-ref <PROJECT_REF>
+supabase db push            # apply 0001..0006
+```
+Sahkan tiada relation error, RLS enabled, dan view R1/R2 wujud:
+```sql
+select relrowsecurity from pg_class where relkind = 'r';  -- semua 't'
+select * from public.vw_r1_income_statement limit 5;
+select * from public.vw_r2_overall_report limit 5;
+```
+
+### B.2 Regenerate types (WAJIB — gantikan fail manual aku)
+```bash
+supabase gen types typescript --project-id <PROJECT_REF> > types/database.ts
+```
+Kemudian `npm run typecheck` & `npm run build` untuk sahkan ia masih lulus.
+
+## C. Arahan seterusnya (selepas migration dipush)
+
+1. **Test end-to-end pada staging batch (bukan production):**
+   - `POST /api/import/quotations` (upload `00. Quotation Tracker (1).xlsx`)
+     → `POST /api/import/{batchId}/match` → `POST /api/import/commit`.
+   - Ulang untuk `invoice_2026.xlsx` dan `cost_of_sales_2026.xlsx`.
+   - Sahkan `target_table`/`target_record_id` di-set dan `commit_import_batch`
+     return `inserted_quotations` / `inserted_invoices` / `inserted_cost_of_sales`.
+2. **Bootstrap admin** (Auth invite per `FIRST_ADMIN_BOOTSTRAP.md`, set `role='super_admin'`).
+3. **Deploy Vercel** ikut `VERCEL_DEPLOYMENT_CHECKLIST.md` — branch `arena/01a04daa-masb-pms-v3`,
+   build `npm run build`, env `NEXT_PUBLIC_SUPABASE_URL` +
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (bukan service-role).
+4. Set Supabase Auth Site URL / redirect URL ke URL Vercel production.
+
+## D. Nota / kebimbangan kecil (bukan blocking)
+
+- **`ilike` wildcard:** dalam `resolveCompany`/`resolveProgram` kau guna `.ilike(name)`.
+  Nama yang mengandungi `%`/`_` akan dianggap pattern SQL. Untuk nama client sebenar
+  (cth. `MIMOS Berhad`) ini selamat, tetapi elok tambah escape atau guna `.eq()` dengan
+  `lower()` bila nama itu nilai tepat. **Cadangan:** untuk alias/company exact, guna
+  `.or()` dengan `lower(alias_text) eq <lowername>` supaya tiada wildcard.
+- **Dua lapisan matching:** `matching-engine.ts` (Sprint 2) set `matching_status`
+  (`EXACT`/`ALIAS`/`COMPOSITE`/`NONE`/`AMBIGUOUS`) dan tulis detail ke `metadata`;
+  `matching-resolution-service.ts` (Sprint 3) tulis `matching_confidence`/`matching_rule`
+  dan set `target_table`/`target_record_id`. Kedua-duanya konsisten & komplementari —
+  **order operasi mesti: matching (2) → resolution (3) → commit (3A).** Jangan skip.
+- `target_record_id` untuk quotation/invoice **baru** = `program.id` (bukan id akhir),
+  manakala untuk yang **sedia ada** = id objek. `commit_import_batch()` hanya guna la
+  sebagai gating (`is not null`), jadi ini OK; ia re-resolve dalam transaction. Jangan
+  jadikan `target_record_id` sebagai FK yang ketat melainkan kau update commit engine.
+- **Audit trigger (`fn_audit_trigger`) belum ada** — `audit_log` kosong sehingga
+  ditambah. Follow-up, tidak blocking.
+
+## E. Format laporan balik (guna template ni)
+
+```
+### Step N: <nama step>
+- Status: ✅ / ⏳ / ❌
+- Apa kau buat:
+- Apa kau jumpa (error/pelik):
+- Bukti/saiz (cth. baris di-commit, exceptions):
+- Perlukan Arena agent buat apa:
+```
+
+---
+
 ## 1. STATUS SEMASA (sudah disahkan dalam repo oleh Arena agent)
 
 | Perkara | Status |

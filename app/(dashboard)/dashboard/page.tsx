@@ -1,8 +1,12 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardOverview, dashboardMetricIcons } from '@/components/dashboard/dashboard-overview'
+import { Button } from '@/components/ui/button'
 import type { Database } from '@/types/database'
 
 type ActionRow = Database['public']['Views']['vw_action_required']['Row']
+
+export const dynamic = 'force-dynamic'
 
 export default async function Dashboard() {
   const s = await createClient()
@@ -16,7 +20,22 @@ export default async function Dashboard() {
   ])
 
   const queryError = programsResult.error ?? invoicesResult.error ?? actionsResult.error ?? sessionsResult.error ?? actionRowsResult.error ?? overdueRowsResult.error
-  if (queryError) throw new Error(queryError.message)
+  if (queryError) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6">
+        <div className="w-full max-w-lg rounded-xl border bg-white p-6 shadow-sm">
+          <h1 className="text-lg font-semibold text-slate-900">Dashboard error</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Unable to load dashboard data right now. Your session may have expired or the database may be temporarily unavailable.
+          </p>
+          <div className="mt-5 flex gap-2">
+            <Button asChild><Link href="/dashboard">Retry</Link></Button>
+            <Button asChild variant="outline"><Link href="/login">Sign in again</Link></Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const actionRows: ActionRow[] = actionRowsResult.data ?? []
   const overdueAmount = (overdueRowsResult.data ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0)

@@ -10,7 +10,10 @@ export default async function ActionCenter() {
   const { data, error } = await supabase.from('vw_action_required').select('*').order('days_outstanding', { ascending: false })
   if (error) throw new Error(error.message)
   const rows: ActionRow[] = data ?? []
-  const overdueAmount = rows.reduce((sum, row) => sum + (row.category?.toUpperCase() === 'OVERDUE' ? Number(row.amount ?? 0) : 0), 0)
+  const overdueAmount = rows.reduce(
+    (sum, row) => sum + (row.category?.toUpperCase() === 'OVERDUE_INVOICE' ? Number(row.amount ?? 0) : 0),
+    0,
+  )
   const highPriority = rows.filter((row) => row.priority?.toUpperCase() === 'HIGH').length
 
   return <div className="space-y-6 p-6">

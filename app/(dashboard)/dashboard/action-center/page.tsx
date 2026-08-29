@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { ActionCenterTable } from '@/components/action-center/action-center-table'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,7 +24,7 @@ export default async function ActionCenter() {
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold">Unable to load Action Center</h2>
             <p className="mt-2 text-sm text-slate-600">Data operasi tidak dapat dimuatkan sekarang. Sila cuba lagi.</p>
-            <Button className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
+            <Button className="mt-4" asChild><Link href="/dashboard/action-center">Retry</Link></Button>
           </CardContent>
         </Card>
       </div>

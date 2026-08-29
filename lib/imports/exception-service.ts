@@ -43,8 +43,8 @@ function candidates(row: StagingRow): ExceptionCandidate[] {
   if (validation.includes('MISSING_COMPANY')) add('MISSING_COMPANY', 'MEDIUM', 'Company is missing from source row.')
   if (validation.includes('MISSING_INVOICE_NUMBER')) add('MISSING_INVOICE_NUMBER', 'HIGH', 'Invoice number is missing from source row.')
   if (validation.includes('INVALID_STATUS')) add('INVALID_STATUS', 'MEDIUM', 'Source status is invalid.')
-  if (row.matching_status === 'DUPLICATE') add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
-  if (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS' || text(metadata.matching_status) === 'UNMATCHED') add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
+  if (text(metadata.duplicate)?.toLowerCase() === 'true') add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
+  if (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS' || row.matching_status === 'PENDING') add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
   return result
 }
 

@@ -2,12 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import type { Database, ImportBatchStatus, Json } from '@/types/database'
 import type { CreateImportBatchInput, StageImportRowInput } from './types'
 
-const IMPORT_ROLES = new Set(['super_admin','admin','manager'])
+const IMPORT_ROLES = new Set(['super_admin', 'admin', 'manager'])
 type ImportBatchRow = Database['public']['Tables']['import_batches']['Row']
 type ImportStagingRow = Database['public']['Tables']['import_staging']['Row']
 
-async function requireImportUser() {
-  const supabase = await createClient()
+async function requireImportUser(accessToken?: string) {
+  const supabase = await createClient(accessToken)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) throw new Error('AUTH_REQUIRED')
   const { data: profile, error: profileError } = await supabase.from('profiles').select('role,is_active').eq('id', user.id).single()
@@ -15,8 +15,8 @@ async function requireImportUser() {
   return { supabase, user }
 }
 
-export async function createImportBatch(input: CreateImportBatchInput): Promise<ImportBatchRow> {
-  const { supabase, user } = await requireImportUser()
+export async function createImportBatch(input: CreateImportBatchInput, accessToken?: string): Promise<ImportBatchRow> {
+  const { supabase, user } = await requireImportUser(accessToken)
   const { data, error } = await supabase.from('import_batches').insert({
     source_type: input.source_type,
     file_name: input.file_name,
@@ -29,15 +29,15 @@ export async function createImportBatch(input: CreateImportBatchInput): Promise<
   return data
 }
 
-export async function getImportBatch(batchId: string): Promise<ImportBatchRow> {
-  const { supabase } = await requireImportUser()
+export async function getImportBatch(batchId: string, accessToken?: string): Promise<ImportBatchRow> {
+  const { supabase } = await requireImportUser(accessToken)
   const { data, error } = await supabase.from('import_batches').select('*').eq('id', batchId).single()
   if (error || !data) throw new Error(error?.message ?? 'IMPORT_BATCH_NOT_FOUND')
   return data
 }
 
-export async function updateImportBatchStatus(batchId: string, status: ImportBatchStatus, errorMessage?: string | null): Promise<ImportBatchRow> {
-  const { supabase } = await requireImportUser()
+export async function updateImportBatchStatus(batchId: string, status: ImportBatchStatus, errorMessage?: string | null, accessToken?: string): Promise<ImportBatchRow> {
+  const { supabase } = await requireImportUser(accessToken)
   const patch: Database['public']['Tables']['import_batches']['Update'] = { status, error_message: errorMessage ?? null }
   if (status === 'PARSING') patch.started_at = new Date().toISOString()
   if (status === 'COMPLETED' || status === 'FAILED' || status === 'ROLLED_BACK' || status === 'CANCELLED') patch.completed_at = new Date().toISOString()
@@ -46,9 +46,9 @@ export async function updateImportBatchStatus(batchId: string, status: ImportBat
   return data
 }
 
-export async function stageImportRows(batchId: string, rows: readonly StageImportRowInput[]): Promise<ImportStagingRow[]> {
+export async function stageImportRows(batchId: string, rows: readonly StageImportRowInput[], accessToken?: string): Promise<ImportStagingRow[]> {
   if (rows.length === 0) return []
-  const { supabase } = await requireImportUser()
+  const { supabase } = await requireImportUser(accessToken)
   const payload: Database['public']['Tables']['import_staging']['Insert'][] = rows.map((row) => ({
     batch_id: batchId,
     source_type: row.source_type,
@@ -67,8 +67,8 @@ export async function stageImportRows(batchId: string, rows: readonly StageImpor
   return data ?? []
 }
 
-export async function updateBatchStatistics(batchId: string): Promise<ImportBatchRow> {
-  const { supabase } = await requireImportUser()
+export async function updateBatchStatistics(batchId: string, accessToken?: string): Promise<ImportBatchRow> {
+  const { supabase } = await requireImportUser(accessToken)
   const { data: rows, error: rowsError } = await supabase.from('import_staging').select('validation_status').eq('batch_id', batchId)
   if (rowsError) throw new Error(rowsError.message)
   const stats = (rows ?? []).reduce((acc, row) => {

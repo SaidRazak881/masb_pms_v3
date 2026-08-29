@@ -43,8 +43,11 @@ function candidates(row: StagingRow): ExceptionCandidate[] {
   if (validation.includes('MISSING_COMPANY')) add('MISSING_COMPANY', 'MEDIUM', 'Company is missing from source row.')
   if (validation.includes('MISSING_INVOICE_NUMBER')) add('MISSING_INVOICE_NUMBER', 'HIGH', 'Invoice number is missing from source row.')
   if (validation.includes('INVALID_STATUS')) add('INVALID_STATUS', 'MEDIUM', 'Source status is invalid.')
-  if (row.matching_status === 'DUPLICATE') add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
-  if (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS' || text(metadata.matching_status) === 'UNMATCHED') add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
+  // 'DUPLICATE' is not a valid DB matching_status — the engine maps duplicates to
+  // 'AMBIGUOUS' and records engine_status='DUPLICATE' in metadata (see matching-engine.ts).
+  const engineStatus = text(metadata.engine_status)?.toUpperCase()
+  if (engineStatus === 'DUPLICATE') add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
+  if (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS' || engineStatus === 'UNMATCHED') add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
   return result
 }
 

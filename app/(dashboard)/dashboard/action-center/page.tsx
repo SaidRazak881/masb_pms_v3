@@ -1,3 +1,5 @@
+import { ActionCenterTable } from '@/components/action-center/action-center-table'
+import { Card, CardContent } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
 
@@ -8,5 +10,15 @@ export default async function ActionCenter() {
   const { data, error } = await supabase.from('vw_action_required').select('*').order('days_outstanding', { ascending: false })
   if (error) throw new Error(error.message)
   const rows: ActionRow[] = data ?? []
-  return <div className="p-6"><h1 className="text-2xl font-bold">Action Center</h1><p className="mt-1 text-sm text-slate-500">Keutamaan tindakan yang dijana daripada data operasi.</p><div className="mt-6 overflow-hidden rounded-xl border bg-white"><table className="w-full text-sm"><thead className="bg-slate-50"><tr><th className="p-3 text-left">Priority</th><th className="p-3 text-left">Category</th><th className="p-3 text-left">Program</th><th className="p-3 text-left">Company</th><th className="p-3 text-right">Amount</th><th className="p-3 text-right">Days</th></tr></thead><tbody>{rows.map((r) => { const key = r.record_id ?? `${r.category}-${r.program_code ?? 'none'}`; return <tr key={key} className="border-t"><td className="p-3 font-semibold">{r.priority}</td><td className="p-3">{r.category}</td><td className="p-3">{r.program_code ?? '—'}</td><td className="p-3">{r.company_name ?? '—'}</td><td className="p-3 text-right">{r.amount == null ? '—' : `RM ${Number(r.amount).toLocaleString('en-MY', { minimumFractionDigits: 2 })}`}</td><td className="p-3 text-right">{r.days_outstanding ?? '—'}</td></tr> })}</tbody></table></div></div>
+  const overdueAmount = rows.reduce((sum, row) => sum + (row.category?.toUpperCase() === 'OVERDUE' ? Number(row.amount ?? 0) : 0), 0)
+  const highPriority = rows.filter((row) => row.priority?.toUpperCase() === 'HIGH').length
+
+  return <div className="space-y-6 p-6">
+    <div><h1 className="text-2xl font-bold tracking-tight">Action Center</h1><p className="mt-1 text-sm text-slate-500">Keutamaan tindakan yang dijana daripada data operasi.</p></div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Total Overdue Amount</p><p className="mt-2 text-2xl font-bold text-red-700">RM {overdueAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}</p></CardContent></Card>
+      <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">High-Priority Alerts</p><p className="mt-2 text-2xl font-bold text-amber-700">{highPriority}</p></CardContent></Card>
+    </div>
+    <ActionCenterTable rows={rows} />
+  </div>
 }

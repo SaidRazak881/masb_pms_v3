@@ -15,27 +15,59 @@
 
 ## A. Keputusan review kerja GPT (Matching Resolution)
 
-Aku dah pull branch `arena/01a04daa-masb-pms-v3` (sekarang pada commit `b5339b1`),
-review **3 fail** yang kau tambah, dan jalankan **typecheck + build penuh**.
+Aku dah pull branch `arena/01a04daa-masb-pms-v3` (sekarang pada commit
+`c9c0fa3` — termasuk 1 commit baru dari aku, lihat bawah), review **3 fail** yang kau
+tambah, dan jalankan **typecheck + build penuh**.
 
 | Perkara | Keputusan |
 |---|---|
 | `supabase/migrations/0006_matching_resolution.sql` | ✅ Fungsional (additive: tambah `matching_confidence` + `matching_rule`, 2 index) |
 | `lib/imports/matching-resolution-service.ts` | ✅ Logik deterministik betul (quotation → program, invoice → quotation/invoice → program, cost_of_sales → invoice) |
 | `app/api/import/[batchId]/match/route.ts` | ✅ Betul (auth + role gating, return count) |
-| `npm run typecheck` | ✅ **PASS** (selepas aku regenerate types — lihat §B) |
-| `npm run build` | ✅ **PASS** (route `/api/import/[batchId]/match` muncul) |
+| `npm run typecheck` | ✅ **PASS** |
+| `npm run build` | ✅ **PASS** |
+| 🆕 `app/api/import/[batchId]/match-engine/route.ts` (ditambah aku) | ✅ **PASS** |
 
-**Apa yang berubah dalam repo selepas review (commit baru dari aku):**
-- **`types/database.ts`** — **ARENA REGENERATED (manual)**. Sebelum `tsc`, `tsc` **GAGAL**
-  dengan error: `company_alias_map does not exist on ...` kerana `types/database.ts`
-  (check-in lama) tidak tahu table yang kau & migration `0005` cipta
-  (`company_alias_map`, `cost_of_sales`, `contacts`, `status_dictionary`,
-  `participant_counts`, `participant_roster`, `import_commit_log`, `vw_r1_income_statement`,
-  `vw_r2_overall_report`, + kolum `matching_confidence`/`matching_rule`).
-  Aku tambahkan semua itu supaya build lulus. **⚠️ Ini regenerate MANUAL — kau WAJIB
-  regenerate semula dengan `supabase gen types` selepas push migration** supaya ia
-  `exact match` dengan Postgres (lihat §B.2).
+### ⚠️ PENEMUAN PENTING: Aku jumpa 1 gap yang BLOKIR E2E
+
+Gap itu ialah **Matching Engine (Sprint 2) tiada route**. Kau (GPT) ada bina
+*Matching Resolution*, tetapi **tiada route yang memanggil `matchImportStaging()` +
+`persistMatchingResults()`** (fungsi `lib/imports/matching-engine.ts`). Kesannya:
+- Selepas import, `import_staging.matching_status` kekal `PENDING`.
+- `resolveMatchingTargets()` di `match/route.ts` tapis `.in('matching_status', ['EXACT','ALIAS','COMPOSITE','FUZZY_REVIEW'])` → **return 0 baris**.
+- Maka resolution dan commit langsung tidak berjalan — **silent no-op**.
+
+**Aku dah bina `app/api/import/[batchId]/match-engine/route.ts`** (auth + RBAC
+super_admin/admin/manager, jalan `matchImportStaging` → `persistMatchingResults`,
+set `import_batches.status='MATCHING'` dari `STAGED`, dan kembalikan kiraan
+`matched/ambiguous/unmatched/duplicates`).
+
+### Aliran END-TO-END yang BETUL (3 endpoint berasingan — JANGAN skip)
+
+```
+Excel
+  → POST /api/import/{source}                (parser → import_staging, status 'STAGED')
+  → POST /api/import/{batchId}/match-engine  (Matching Engine: set matching_status EXACT/ALIAS/COMPOSITE/NONE/AMBIGUOUS)
+  → POST /api/import/{batchId}/match         (Matching Resolution: set target_table/target_record_id/matching_confidence/matching_rule)
+  → POST /api/import/commit                  (Commit Engine: insert ke domain tables)
+```
+
+### Apa yang berubah dalam repo selepas review (commit baru dari aku)
+
+1. **`app/api/import/[batchId]/match-engine/route.ts`** (BARU) — lihat penemuan di atas.
+2. **`lib/imports/matching-resolution-service.ts`** — aku **hardened** setiap `.ilike()`
+   supaya selamat: tambah `escapeLike()` yang escape `%`/`_`/`\` supaya nama client
+   (cth. yang mengandungi `%` atau `_`) dilayan sebagai literal, bukan SQL pattern.
+   Semua lookup (alias, company, program, quotation, invoice) kini null-safe.
+3. **`types/database.ts`** — **ARENA REGENERATED (manual)**. Sebelum `tsc`, ia **GAGAL**
+   dengan error: `company_alias_map does not exist on ...` kerana `types/database.ts`
+   (check-in lama) tidak tahu table yang kau & migration `0005` cipta
+   (`company_alias_map`, `cost_of_sales`, `contacts`, `status_dictionary`,
+   `participant_counts`, `participant_roster`, `import_commit_log`, `vw_r1_income_statement`,
+   `vw_r2_overall_report`, + kolum `matching_confidence`/`matching_rule`).
+   Aku tambahkan semua itu supaya build lulus. **⚠️ Ini regenerate MANUAL — kau WAJIB
+   regenerate semula dengan `supabase gen types` selepas push migration** supaya ia
+   `exact match` dengan Postgres (lihat §B.2).
 
 ## B. Arahan BLOCKING untuk GPT (buat ini dulu)
 
@@ -59,12 +91,18 @@ Kemudian `npm run typecheck` & `npm run build` untuk sahkan ia masih lulus.
 
 ## C. Arahan seterusnya (selepas migration dipush)
 
-1. **Test end-to-end pada staging batch (bukan production):**
-   - `POST /api/import/quotations` (upload `00. Quotation Tracker (1).xlsx`)
-     → `POST /api/import/{batchId}/match` → `POST /api/import/commit`.
-   - Ulang untuk `invoice_2026.xlsx` dan `cost_of_sales_2026.xlsx`.
-   - Sahkan `target_table`/`target_record_id` di-set dan `commit_import_batch`
-     return `inserted_quotations` / `inserted_invoices` / `inserted_cost_of_sales`.
+1. **Test end-to-end pada staging batch (bukan production) — guna 3 endpoint:**
+   ```
+   POST /api/import/quotations   (upload `00. Quotation Tracker (1).xlsx`)  → dapatkan batchId
+   POST /api/import/{batchId}/match-engine                                  → set matching_status
+   POST /api/import/{batchId}/match                                         → set target_table/target_record_id
+   POST /api/import/commit                                                  → commit ke domain tables
+   ```
+   Ulang untuk `invoice_2026.xlsx` dan `cost_of_sales_2026.xlsx`. Sahkan pada setiap
+   langkah: `match-engine` return `matched>0`, `match` return `resolved>0`, dan
+   `commit_import_batch` return `inserted_quotations` / `inserted_invoices` /
+   `inserted_cost_of_sales`. **Jika `match` return `resolved=0`, ini tanda
+   `match-engine` belum dipanggil dahulu — JANGAN commit.**
 2. **Bootstrap admin** (Auth invite per `FIRST_ADMIN_BOOTSTRAP.md`, set `role='super_admin'`).
 3. **Deploy Vercel** ikut `VERCEL_DEPLOYMENT_CHECKLIST.md` — branch `arena/01a04daa-masb-pms-v3`,
    build `npm run build`, env `NEXT_PUBLIC_SUPABASE_URL` +
@@ -277,8 +315,9 @@ Ikut `VERCEL_DEPLOYMENT_CHECKLIST.md`, `FIRST_ADMIN_BOOTSTRAP.md` dan repo:
 2. **`supabase db push`** untuk `0005_reconcile_schema.sql` — **keutamaan #1**,
    semuanya bergantung pada ini.
 3. **Regenerate `types/database.ts`**.
-4. **Tambah `/api/import/[batchId]/match`** + set `target_table`/`target_record_id`
-   supaya commit engine boleh commit (lihat §3).
+4. **Gunapakai aliran 3 endpoint**: `match-engine` → `match` → `commit` (lihat §3).
+   Route `match-engine` dan `match` sudah ada dalam repo; kau cuma perlu panggil
+   dalam urutan betul semasa E2E.
 5. **Bootstrap admin** (Auth invite, set `super_admin`).
 6. **Deploy Vercel** ikut checklist §5, then jalankan post-deploy checks.
 7. **Seed `status_dictionary`** dan (optional) tambah audit-log triggers.

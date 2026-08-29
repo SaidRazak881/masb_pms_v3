@@ -16,38 +16,43 @@ type Company = { id: string; canonical_name: string }
 type Program = { id: string; program_code: string; title: string; company_id: string }
 type Quotation = { id: string; quotation_no_raw: string; program_id: string }
 type Invoice = { id: string; invoice_no: string; program_id: string }
-type Alias = { alias_text: string; company_id: string }
 
 const obj = (value: Json): Record<string, Json> => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, Json> : {}
 const str = (value: Json): string | null => typeof value === 'string' || typeof value === 'number' ? String(value).trim() || null : null
-const norm = (value: string | null): string | null => value?.trim().toLowerCase() || null
+// Escape LIKE wildcards (% _ \) so untrusted client names are treated as literals,
+// not as SQL patterns (a name containing '%' would otherwise match everything).
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (ch) => '\\' + ch)
+const toLike = (value: string | null): string | null => value ? escapeLike(value) : null
 function field(row: StageRow, names: string[]): string | null { const d = obj(row.normalized_data); for (const n of names) { const v = str(d[n]); if (v) return v } return null }
 
 async function resolveCompany(supabase: Awaited<ReturnType<typeof createClient>>, companyName: string | null): Promise<Company | null> {
-  if (!norm(companyName)) return null
-  const { data: alias, error: aliasError } = await supabase.from('company_alias_map').select('alias_text,company_id').ilike('alias_text', companyName!.trim()).limit(2)
+  const needle = toLike(companyName?.trim() ?? '')
+  if (!needle) return null
+  const { data: alias, error: aliasError } = await supabase.from('company_alias_map').select('alias_text,company_id').ilike('alias_text', needle).limit(2)
   if (aliasError) throw aliasError
   if (alias?.length === 1) {
-    const { data, error } = await supabase.from('companies').select('id,canonical_name').eq('id', (alias[0] as Alias).company_id).maybeSingle()
+    const { data, error } = await supabase.from('companies').select('id,canonical_name').eq('id', alias[0].company_id).maybeSingle()
     if (error) throw error
     if (data) return data as Company
   }
-  const { data: companies, error } = await supabase.from('companies').select('id,canonical_name').ilike('canonical_name', companyName!.trim()).limit(2)
+  const { data: companies, error } = await supabase.from('companies').select('id,canonical_name').ilike('canonical_name', needle).limit(2)
   if (error) throw error
   return companies?.length === 1 ? companies[0] as Company : null
 }
 
 async function resolveProgram(supabase: Awaited<ReturnType<typeof createClient>>, companyId: string | null, programCode: string | null, projectTitle: string | null): Promise<Program | null> {
-  if (programCode) {
-    const { data, error } = await supabase.from('programs').select('id,program_code,title,company_id').ilike('program_code', programCode).limit(2)
+  const codeNeedle = toLike(programCode ?? '')
+  if (codeNeedle) {
+    const { data, error } = await supabase.from('programs').select('id,program_code,title,company_id').ilike('program_code', codeNeedle).limit(2)
     if (error) throw error
     const matches = (data ?? []) as Program[]
     const scoped = companyId ? matches.filter(p => p.company_id === companyId) : matches
     if (scoped.length === 1) return scoped[0]
     if (matches.length === 1 && !companyId) return matches[0]
   }
-  if (projectTitle) {
-    const { data, error } = await supabase.from('programs').select('id,program_code,title,company_id').ilike('title', projectTitle).limit(5)
+  const titleNeedle = toLike(projectTitle ?? '')
+  if (titleNeedle) {
+    const { data, error } = await supabase.from('programs').select('id,program_code,title,company_id').ilike('title', titleNeedle).limit(5)
     if (error) throw error
     const matches = (data ?? []) as Program[]
     const scoped = companyId ? matches.filter(p => p.company_id === companyId) : matches
@@ -63,15 +68,17 @@ async function resolveProgramById(supabase: Awaited<ReturnType<typeof createClie
 }
 
 async function resolveExistingQuotation(supabase: Awaited<ReturnType<typeof createClient>>, quotationNo: string | null): Promise<Quotation | null> {
-  if (!quotationNo) return null
-  const { data, error } = await supabase.from('quotations').select('id,quotation_no_raw,program_id').ilike('quotation_no_raw', quotationNo).limit(2)
+  const needle = toLike(quotationNo ?? '')
+  if (!needle) return null
+  const { data, error } = await supabase.from('quotations').select('id,quotation_no_raw,program_id').ilike('quotation_no_raw', needle).limit(2)
   if (error) throw error
   return data?.length === 1 ? data[0] as Quotation : null
 }
 
 async function resolveExistingInvoice(supabase: Awaited<ReturnType<typeof createClient>>, invoiceNo: string | null): Promise<Invoice | null> {
-  if (!invoiceNo) return null
-  const { data, error } = await supabase.from('invoices').select('id,invoice_no,program_id').ilike('invoice_no', invoiceNo).limit(2)
+  const needle = toLike(invoiceNo ?? '')
+  if (!needle) return null
+  const { data, error } = await supabase.from('invoices').select('id,invoice_no,program_id').ilike('invoice_no', needle).limit(2)
   if (error) throw error
   return data?.length === 1 ? data[0] as Invoice : null
 }

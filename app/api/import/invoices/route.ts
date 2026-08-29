@@ -24,7 +24,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'INVOICE_FILE_TYPE_NOT_SUPPORTED' }, { status: 415 })
     }
 
-    const result = await importInvoiceWorkbook(fileValue)
+    const authorization = request.headers.get('authorization')
+    const bearerMatch = authorization?.match(/^Bearer\s+(.+)$/i)
+    const accessToken = bearerMatch?.[1]?.trim()
+
+    const result = await importInvoiceWorkbook(fileValue, accessToken)
     return NextResponse.json({ data: result }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'INVOICE_IMPORT_FAILED'

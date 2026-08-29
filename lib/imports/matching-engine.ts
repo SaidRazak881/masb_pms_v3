@@ -1,9 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Json } from '@/types/database'
+import type { ImportMatchingStatus, Json } from '@/types/database'
 
 export type MatchingStatus = 'MATCHED' | 'AMBIGUOUS' | 'UNMATCHED' | 'DUPLICATE'
 export type MatchingRule = 'EXACT_QUOTATION_NUMBER' | 'EXACT_INVOICE_NUMBER' | 'COMPANY_ALIAS' | 'PROGRAM_CODE' | 'NONE'
 export type MatchingResult = { stagingId:string; status:MatchingStatus; confidence:number; rule:MatchingRule; matchedStagingId:string|null; reason:string }
+
+/**
+ * Maps the engine-internal status to the vocabulary enforced by the
+ * `import_staging.matching_status` check constraint
+ * ('PENDING','EXACT','ALIAS','COMPOSITE','FUZZY_REVIEW','AMBIGUOUS','NONE').
+ *
+ * DUPLICATE deliberately maps to 'AMBIGUOUS' (not 'FUZZY_REVIEW') so duplicate
+ * rows are never eligible for the production commit engine, which only accepts
+ * ('EXACT','ALIAS','COMPOSITE','FUZZY_REVIEW').
+ */
+export function toDbMatchingStatus(status:MatchingStatus, rule:MatchingRule):ImportMatchingStatus {
+  if(status==='MATCHED') return rule==='EXACT_QUOTATION_NUMBER'||rule==='EXACT_INVOICE_NUMBER' ? 'EXACT' : 'ALIAS'
+  if(status==='AMBIGUOUS'||status==='DUPLICATE') return 'AMBIGUOUS'
+  return 'NONE'
+}
 
 type Stage = { id:string; source_type:string; normalized_data:Json; row_hash:string }
 const objectData=(value:Json):Record<string,Json> => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string,Json> : {}
@@ -44,8 +59,15 @@ export async function matchImportStaging(batchId:string, accessToken?:string):Pr
 
 export async function persistMatchingResults(batchId:string, results:MatchingResult[], accessToken?:string){
   const supabase=await createClient(accessToken)
+  // import_staging has no matching_confidence/matching_metadata columns — store
+  // the full engine outcome in the existing `metadata` jsonb column, merged with
+  // the parser metadata already present on each row.
+  const {data:existing,error:fetchError}=await supabase.from('import_staging').select('id,metadata').eq('batch_id',batchId)
+  if(fetchError) throw fetchError
+  const metadataById=new Map<string,Record<string,Json>>((existing??[]).map((row)=>[row.id,objectData(row.metadata)]))
   for(const result of results){
-    const {error}=await supabase.from('import_staging').update({matching_status:result.status,matching_confidence:result.confidence,matching_metadata:{rule:result.rule,matched_staging_id:result.matchedStagingId,reason:result.reason} as unknown as Json}).eq('id',result.stagingId).eq('batch_id',batchId)
+    const metadata={...metadataById.get(result.stagingId),engine_status:result.status,matching_confidence:result.confidence,matching_rule:result.rule,matched_staging_id:result.matchedStagingId,matching_reason:result.reason} as unknown as Json
+    const {error}=await supabase.from('import_staging').update({matching_status:toDbMatchingStatus(result.status,result.rule),metadata}).eq('id',result.stagingId).eq('batch_id',batchId)
     if(error) throw error
   }
   return results

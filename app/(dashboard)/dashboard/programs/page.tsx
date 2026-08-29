@@ -1,3 +1,4 @@
+import { ProgramsTable } from '@/components/programs/programs-table'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
 
@@ -8,5 +9,12 @@ export default async function Programs() {
   const { data, error } = await supabase.from('vw_r3_sales_funnel').select('*').order('weighted_value', { ascending: false })
   if (error) throw new Error(error.message)
   const rows: FunnelRow[] = data ?? []
-  return <div className="p-6"><h1 className="text-2xl font-bold">Program 360</h1><p className="mt-1 text-sm text-slate-500">Program sebagai spine untuk quotation, PO, invoice, payment dan training.</p><div className="mt-6 grid gap-4">{rows.map((p) => <a href={`/dashboard/programs/${p.program_code}`} key={p.program_code} className="rounded-xl border bg-white p-5 shadow-sm hover:border-slate-400"><div className="flex items-start justify-between gap-4"><div><div className="text-xs font-semibold text-blue-600">{p.program_code}</div><div className="mt-1 font-semibold">{p.title}</div><div className="mt-1 text-sm text-slate-500">{p.company_name} · {p.sector ?? '—'}</div></div><div className="text-right"><div className="text-sm">{p.current_stage}</div><div className="font-semibold">RM {Number(p.weighted_value ?? 0).toLocaleString('en-MY', { minimumFractionDigits: 2 })}</div></div></div></a>)}</div></div>
+
+  return <div className="space-y-6 p-6">
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight">Program 360</h1>
+      <p className="mt-1 text-sm text-slate-500">Program sebagai spine untuk quotation, PO, invoice, payment dan training.</p>
+    </div>
+    <ProgramsTable rows={rows} />
+  </div>
 }

@@ -30,7 +30,7 @@ const toStageInput = (row: ParsedInvoiceRow) => ({
   } as unknown as Json,
 })
 
-export async function importInvoiceWorkbook(file: File): Promise<InvoiceImportResult> {
+export async function importInvoiceWorkbook(file: File, accessToken?: string): Promise<InvoiceImportResult> {
   const buffer = Buffer.from(await file.arrayBuffer())
   const batch = await createImportBatch({
     source_type: 'invoice_2026',
@@ -38,18 +38,18 @@ export async function importInvoiceWorkbook(file: File): Promise<InvoiceImportRe
     file_size_bytes: file.size,
     content_type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     metadata: { parser: 'InvoiceParser', workflow: 'Excel -> Parser -> Normalize -> import_staging' },
-  })
+  }, accessToken)
 
   try {
-    await updateImportBatchStatus(batch.id, 'PARSING')
+    await updateImportBatchStatus(batch.id, 'PARSING', undefined, accessToken)
     const parsedRows = invoiceParser.parse(buffer)
 
     for (let offset = 0; offset < parsedRows.length; offset += CHUNK_SIZE) {
-      await stageImportRows(batch.id, parsedRows.slice(offset, offset + CHUNK_SIZE).map(toStageInput))
+      await stageImportRows(batch.id, parsedRows.slice(offset, offset + CHUNK_SIZE).map(toStageInput), accessToken)
     }
 
-    const updatedBatch = await updateBatchStatistics(batch.id)
-    await updateImportBatchStatus(batch.id, 'STAGED')
+    const updatedBatch = await updateBatchStatistics(batch.id, accessToken)
+    await updateImportBatchStatus(batch.id, 'STAGED', undefined, accessToken)
 
     return {
       batchId: updatedBatch.id,
@@ -61,7 +61,7 @@ export async function importInvoiceWorkbook(file: File): Promise<InvoiceImportRe
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'INVOICE_IMPORT_FAILED'
-    await updateImportBatchStatus(batch.id, 'PARSING_FAILED', message).catch(() => undefined)
+    await updateImportBatchStatus(batch.id, 'PARSING_FAILED', message, accessToken).catch(() => undefined)
     throw new Error(message)
   }
 }

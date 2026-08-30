@@ -7,15 +7,19 @@ import type { UserRole } from '@/types/database'
 
 type EditableTable = 'programs' | 'companies' | 'quotations' | 'purchase_orders' | 'invoices' | 'payments' | 'training_sessions' | 'participant_roster'
 
+// Operational data is editable by Super Admin and MASB Team.
+// Viewer is strictly read-only. Bulk import has its own Super Admin-only guard.
+const EDITOR_ROLES: UserRole[] = ['super_admin', 'masb_team']
+
 const ROLE_MAP: Record<EditableTable, UserRole[]> = {
-  programs: ['super_admin', 'admin', 'manager', 'pic'],
-  companies: ['super_admin', 'admin'],
-  quotations: ['super_admin', 'admin', 'manager', 'pic'],
-  purchase_orders: ['super_admin', 'admin', 'manager', 'pic'],
-  invoices: ['super_admin', 'admin'],
-  payments: ['super_admin', 'admin'],
-  training_sessions: ['super_admin', 'admin', 'manager', 'pic'],
-  participant_roster: ['super_admin', 'admin', 'manager', 'pic'],
+  programs: EDITOR_ROLES,
+  companies: EDITOR_ROLES,
+  quotations: EDITOR_ROLES,
+  purchase_orders: EDITOR_ROLES,
+  invoices: EDITOR_ROLES,
+  payments: EDITOR_ROLES,
+  training_sessions: EDITOR_ROLES,
+  participant_roster: EDITOR_ROLES,
 }
 
 const ALLOWED_FIELDS: Record<EditableTable, readonly string[]> = {

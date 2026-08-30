@@ -2,35 +2,33 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentUser, can } from '@/lib/rbac'
+import { getCurrentUser, EDIT_ROLES, can } from '@/lib/rbac'
 import type { UserRole } from '@/types/database'
 
-type EditableTable = 'programs' | 'companies' | 'quotations' | 'purchase_orders' | 'invoices' | 'payments' | 'training_sessions' | 'participant_roster'
-
-// Operational data is editable by Super Admin and MASB Team.
-// Viewer is strictly read-only. Bulk import has its own Super Admin-only guard.
-const EDITOR_ROLES: UserRole[] = ['super_admin', 'masb_team']
+type EditableTable =
+  | 'programs' | 'companies' | 'contacts' | 'quotations' | 'purchase_orders'
+  | 'invoices' | 'payments' | 'cost_of_sales' | 'training_sessions'
+  | 'participant_counts' | 'participant_roster'
 
 const ROLE_MAP: Record<EditableTable, UserRole[]> = {
-  programs: EDITOR_ROLES,
-  companies: EDITOR_ROLES,
-  quotations: EDITOR_ROLES,
-  purchase_orders: EDITOR_ROLES,
-  invoices: EDITOR_ROLES,
-  payments: EDITOR_ROLES,
-  training_sessions: EDITOR_ROLES,
-  participant_roster: EDITOR_ROLES,
+  programs: EDIT_ROLES, companies: EDIT_ROLES, contacts: EDIT_ROLES,
+  quotations: EDIT_ROLES, purchase_orders: EDIT_ROLES, invoices: EDIT_ROLES,
+  payments: EDIT_ROLES, cost_of_sales: EDIT_ROLES, training_sessions: EDIT_ROLES,
+  participant_counts: EDIT_ROLES, participant_roster: EDIT_ROLES,
 }
 
 const ALLOWED_FIELDS: Record<EditableTable, readonly string[]> = {
-  programs: ['title', 'company_id', 'category', 'training_type', 'current_stage', 'client_category', 'sector', 'pic_user_id', 'account_manager_user_id', 'lead_date', 'forecast_value', 'probability', 'needs_review'],
-  companies: ['canonical_name', 'aliases', 'client_category', 'sector', 'is_merged_into'],
-  quotations: ['quotation_no_raw', 'quotation_date', 'final_price', 'status', 'prepared_by'],
-  purchase_orders: ['quotation_id', 'po_no', 'po_date', 'po_value'],
-  invoices: ['quotation_id', 'po_id', 'invoice_no', 'invoice_date', 'invoice_value_excl_sst', 'sst_amount', 'payment_terms_days', 'payment_status', 'pic'],
-  payments: ['amount', 'payment_date', 'method', 'reference_no'],
-  training_sessions: ['session_title', 'session_type', 'start_date', 'end_date', 'venue', 'duration_days', 'r2_status'],
-  participant_roster: ['full_name', 'cert_no', 'is_bumiputera', 'participation_type', 'week_label', 'attendance_date'],
+  programs: ['title','company_id','category','training_type','current_stage','client_category','sector','pic_user_id','account_manager_user_id','lead_date','forecast_value','probability','needs_review'],
+  companies: ['canonical_name','aliases','client_category','sector','is_merged_into'],
+  contacts: ['company_id','full_name','designation','email','phone'],
+  quotations: ['program_id','quotation_no_raw','quotation_series','quotation_year','quotation_seq','revision_no','quotation_date','duration_days','no_of_unit','unit_price_excl_sst','unit_price_incl_sst','total_price_excl_sst','sst_amount','total_price_incl_sst','discount_pct','final_price','status','prepared_by'],
+  purchase_orders: ['program_id','quotation_id','po_no','po_date','po_value'],
+  invoices: ['program_id','quotation_id','po_id','invoice_no','invoice_date','invoice_value_excl_sst','sst_amount','payment_terms_days','payment_status','payment_method','account','account_manager','pic','remark'],
+  payments: ['invoice_id','amount','payment_date','method','reference_no'],
+  cost_of_sales: ['invoice_id','invoice_no','invoice_value','collection','cost_of_sales_amount','mimos_academy_cost','commission','bro_incentive','net_profit','profit_percentage','had_formula_error'],
+  training_sessions: ['program_id','session_title','session_type','start_date','end_date','venue','duration_days','r2_status'],
+  participant_counts: ['training_session_id','category','workshop_count','training_count','bumiputera_count','non_bumiputera_count'],
+  participant_roster: ['training_session_id','full_name','cert_no','is_bumiputera','participation_type','week_label','attendance_date'],
 }
 
 function sanitize(table: EditableTable, changes: Record<string, unknown>) {
@@ -47,9 +45,13 @@ export async function updateEditableRecord(input: { table: EditableTable; id: st
   if (!Object.keys(changes).length) return { ok: false, error: 'No editable fields were provided.' }
 
   const supabase = await createClient()
+  const { data: existing, error: readError } = await (supabase as any).from(input.table).select('*').eq('id', input.id).single()
+  if (readError || !existing) return { ok: false, error: 'Record not found.' }
+
   const { error } = await (supabase as any).from(input.table).update(changes).eq('id', input.id)
   if (error) return { ok: false, error: error.message }
 
+  // The database audit trigger records old/new row values and authenticated user.
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/programs')
   revalidatePath('/dashboard/programs/[code]', 'page')

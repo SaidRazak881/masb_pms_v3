@@ -82,17 +82,17 @@ export default async function Dashboard() {
   try {
     const data = await loadDashboardData()
     const metrics = [
-      { label: 'Programs', value: data.programs, icon: dashboardMetricIcons.programs, href: '/dashboard/programs', tone: 'bg-blue-50 text-blue-700' },
-      { label: 'Invoices', value: data.invoices, icon: dashboardMetricIcons.invoices, href: '/dashboard/r1', tone: 'bg-violet-50 text-violet-700' },
-      { label: 'Action Items', value: data.actions, icon: dashboardMetricIcons.actions, href: '/dashboard/action-center', tone: 'bg-amber-50 text-amber-700' },
-      { label: 'Training Sessions', value: data.sessions, icon: dashboardMetricIcons.sessions, href: '/dashboard/r2', tone: 'bg-emerald-50 text-emerald-700' },
+      { label: 'Programs', value: data.programs, icon: dashboardMetricIcons.programs, href: '/dashboard/programs', tone: 'blue' as const },
+      { label: 'Invoices', value: data.invoices, icon: dashboardMetricIcons.invoices, href: '/dashboard/r1', tone: 'violet' as const },
+      { label: 'Action Items', value: data.actions, icon: dashboardMetricIcons.actions, href: '/dashboard/action-center', tone: 'amber' as const },
+      { label: 'Training Sessions', value: data.sessions, icon: dashboardMetricIcons.sessions, href: '/dashboard/r2', tone: 'emerald' as const },
     ]
 
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">Operational overview daripada Supabase.</p>
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Papan Pemuka Operasi (Dashboard)</h1>
+          <p className="mt-1 text-xs text-slate-500">Ringkasan masa nyata aktiviti program, invois dan tindakan penting.</p>
         </div>
         <DashboardOverview metrics={metrics} actions={data.actionRows} overdueAmount={data.overdueAmount} />
       </div>

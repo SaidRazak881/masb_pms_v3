@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { EnterpriseSidebar } from '@/components/layout/sidebar'
 import { EnterpriseTopbar } from '@/components/layout/topbar'
+import { Program360MutationPanel } from '@/components/programs/program360-mutation-panel'
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const { user, role } = await requireUser()
@@ -11,6 +12,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         <EnterpriseTopbar userEmail={user.email ?? ''} userRole={role ?? 'user'} />
         <main className="min-w-0 flex-1 pb-16">{children}</main>
       </div>
+      <Program360MutationPanel />
     </div>
   )
 }

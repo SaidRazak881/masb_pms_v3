@@ -5,12 +5,12 @@ const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-int
 
 export const metadata = {
   title: 'MIMOS Academy PMS',
-  description: 'Sistem Pengurusan R1/R2/R3 MIMOS Academy',
+  description: 'MIMOS Academy R1/R2/R3 Program Management System',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ms">
+    <html lang="en">
       <body className={inter.className}>{children}</body>
     </html>
   )

@@ -15,5 +15,5 @@ export async function requireUser():Promise<AuthContext>{
 }
 
 export async function requireRole(roles:UserRole[]){const context=await requireUser();if(!roles.includes(context.role))redirect('/dashboard');return context}
-export async function requireAdmin(){return requireRole(['super_admin','admin'])}
-export async function requireManagerOrAbove(){return requireRole(['super_admin','admin','manager'])}
+export async function requireSuperAdmin(){return requireRole(['super_admin'])}
+export async function requireEditor(){return requireRole(['super_admin','masb_team'])}

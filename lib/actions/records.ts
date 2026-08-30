@@ -58,6 +58,84 @@ function validateRequired(table: EditableTable, values: Record<string, unknown>)
   return missing ?? null
 }
 
+async function exists(supabase: any, table: string, id: unknown) {
+  if (typeof id !== 'string' || !id) return false
+  const { data, error } = await supabase.from(table).select('id').eq('id', id).maybeSingle()
+  return !error && !!data?.id
+}
+
+async function validateRelationships(supabase: any, table: EditableTable, values: Record<string, unknown>) {
+  const fail = (message: string) => ({ ok: false as const, error: message })
+
+  if (table === 'contacts' && values.company_id && !(await exists(supabase, 'companies', values.company_id)))
+    return fail('The selected company does not exist.')
+
+  if (table === 'programs' && values.company_id && !(await exists(supabase, 'companies', values.company_id)))
+    return fail('The selected company does not exist.')
+
+  if (table === 'quotations' && values.program_id && !(await exists(supabase, 'programs', values.program_id)))
+    return fail('The selected program does not exist.')
+
+  if (table === 'purchase_orders') {
+    if (values.program_id && !(await exists(supabase, 'programs', values.program_id)))
+      return fail('The selected program does not exist.')
+    if (values.quotation_id) {
+      const { data: quotation, error } = await supabase.from('quotations').select('id,program_id').eq('id', values.quotation_id).maybeSingle()
+      if (error || !quotation) return fail('The selected quotation does not exist.')
+      if (values.program_id && quotation.program_id !== values.program_id)
+        return fail('The quotation must belong to the selected program.')
+    }
+  }
+
+  if (table === 'invoices') {
+    if (values.program_id && !(await exists(supabase, 'programs', values.program_id)))
+      return fail('The selected program does not exist.')
+    if (values.quotation_id) {
+      const { data: quotation, error } = await supabase.from('quotations').select('id,program_id').eq('id', values.quotation_id).maybeSingle()
+      if (error || !quotation) return fail('The selected quotation does not exist.')
+      if (values.program_id && quotation.program_id !== values.program_id)
+        return fail('The quotation must belong to the selected program.')
+    }
+    if (values.po_id) {
+      const { data: po, error } = await supabase.from('purchase_orders').select('id,program_id').eq('id', values.po_id).maybeSingle()
+      if (error || !po) return fail('The selected purchase order does not exist.')
+      if (values.program_id && po.program_id !== values.program_id)
+        return fail('The purchase order must belong to the selected program.')
+    }
+  }
+
+  if (table === 'payments' && values.invoice_id && !(await exists(supabase, 'invoices', values.invoice_id)))
+    return fail('The selected invoice does not exist.')
+
+  if (table === 'cost_of_sales' && values.invoice_id && !(await exists(supabase, 'invoices', values.invoice_id)))
+    return fail('The selected invoice does not exist.')
+
+  if (table === 'training_sessions' && values.program_id && !(await exists(supabase, 'programs', values.program_id)))
+    return fail('The selected program does not exist.')
+
+  if (table === 'participant_counts' && values.training_session_id && !(await exists(supabase, 'training_sessions', values.training_session_id)))
+    return fail('The selected training session does not exist.')
+
+  if (table === 'participant_roster' && values.training_session_id && !(await exists(supabase, 'training_sessions', values.training_session_id)))
+    return fail('The selected training session does not exist.')
+
+  return { ok: true as const }
+}
+
+async function writeAudit(supabase: any, table: EditableTable, recordId: string, action: 'CREATE' | 'UPDATE', oldValue: unknown, newValue: unknown, userId: string) {
+  const { error } = await supabase.from('audit_log').insert({
+    table_name: table,
+    record_id: recordId,
+    action,
+    old_value: oldValue ?? null,
+    new_value: newValue ?? null,
+    changed_by: userId,
+    changed_at: new Date().toISOString(),
+    source: 'application',
+  })
+  return !error
+}
+
 function revalidateData() {
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/programs')
@@ -72,6 +150,7 @@ export async function updateEditableRecord(input: { table: EditableTable; id: st
   if (!user) return { ok: false, error: 'Authentication required.' }
   if (!can(user.role, ROLE_MAP[input.table])) return { ok: false, error: 'You do not have permission to edit this record.' }
   if (!input.id) return { ok: false, error: 'Record ID is required.' }
+
   const changes = sanitize(input.table, input.changes)
   if (!Object.keys(changes).length) return { ok: false, error: 'No editable fields were provided.' }
 
@@ -79,10 +158,31 @@ export async function updateEditableRecord(input: { table: EditableTable; id: st
   const { data: existing, error: readError } = await (supabase as any).from(input.table).select('*').eq('id', input.id).single()
   if (readError || !existing) return { ok: false, error: 'Record not found.' }
 
+  const merged = { ...existing, ...changes }
+  const missing = validateRequired(input.table, merged)
+  if (missing) return { ok: false, error: `Required field missing: ${missing}.` }
+
+  const relationship = await validateRelationships(supabase, input.table, merged)
+  if (!relationship.ok) return relationship
+
   const { error } = await (supabase as any).from(input.table).update(changes).eq('id', input.id)
   if (error) return { ok: false, error: error.message }
 
+  const audited = await writeAudit(supabase, input.table, input.id, 'UPDATE', existing, { ...existing, ...changes }, user.id)
+
+  if (input.table === 'programs' && changes.current_stage && changes.current_stage !== existing.current_stage) {
+    await supabase.from('pipeline_stage_history').insert({
+      program_id: input.id,
+      stage: changes.current_stage,
+      changed_by: user.id,
+      changed_at: new Date().toISOString(),
+      is_override: true,
+      source_system: 'application',
+    })
+  }
+
   revalidateData()
+  if (!audited) console.error('Audit log write failed after successful update', { table: input.table, recordId: input.id })
   return { ok: true }
 }
 
@@ -97,9 +197,14 @@ export async function createEditableRecord(input: { table: EditableTable; values
   if (missing) return { ok: false, error: `Required field missing: ${missing}.` }
 
   const supabase = await createClient()
+  const relationship = await validateRelationships(supabase, input.table, values)
+  if (!relationship.ok) return relationship
+
   const { data, error } = await (supabase as any).from(input.table).insert(values).select('id').single()
   if (error || !data?.id) return { ok: false, error: error?.message ?? 'Unable to create record.' }
 
+  const audited = await writeAudit(supabase, input.table, data.id, 'CREATE', null, values, user.id)
   revalidateData()
+  if (!audited) console.error('Audit log write failed after successful create', { table: input.table, recordId: data.id })
   return { ok: true, id: data.id }
 }

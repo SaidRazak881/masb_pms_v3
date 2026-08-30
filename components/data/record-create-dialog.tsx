@@ -27,26 +27,35 @@ type Field = {
   fullWidth?: boolean
 }
 
+type Props = {
+  table: EditableTable
+  title: string
+  fields: Field[]
+  triggerLabel?: string
+  onCreated?: (id: string) => void
+  initialValues?: Record<string, unknown>
+  hiddenFields?: string[]
+}
+
 export function RecordCreateDialog({
   table,
   title,
   fields,
   triggerLabel = 'Add Record',
   onCreated,
-}: {
-  table: EditableTable
-  title: string
-  fields: Field[]
-  triggerLabel?: string
-  onCreated?: (id: string) => void
-}) {
+  initialValues: suppliedInitialValues,
+  hiddenFields = [],
+}: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<Record<string, unknown>>({})
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const initialValues = useMemo(() => Object.fromEntries(fields.map((field) => [field.key, field.type === 'checkbox' ? false : ''])), [fields])
+  const initialValues = useMemo(() => {
+    const defaults = Object.fromEntries(fields.map((field) => [field.key, field.type === 'checkbox' ? false : '']))
+    return { ...defaults, ...suppliedInitialValues }
+  }, [fields, suppliedInitialValues])
 
   function openDialog() {
     setDraft(initialValues)
@@ -99,7 +108,7 @@ export function RecordCreateDialog({
         </div>
         <div className="max-h-[70vh] overflow-y-auto p-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            {fields.map((field) => {
+            {fields.filter((field) => !hiddenFields.includes(field.key)).map((field) => {
               const value = draft[field.key]
               if (field.type === 'checkbox') return <label key={field.key} className="flex items-center gap-2 rounded-lg border border-slate-200 p-3 sm:col-span-2"><input type="checkbox" checked={Boolean(value)} onChange={(event) => setValue(field.key, event.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-700">{field.label}{field.required ? ' *' : ''}</span></label>
               return <div key={field.key} className={cn(field.fullWidth ? 'sm:col-span-2' : '')}>

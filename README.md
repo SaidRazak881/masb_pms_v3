@@ -52,7 +52,7 @@ npm run build      # production build
 - `/dashboard/r1` — R1 Income Statement (`vw_r1_income_statement`)
 - `/dashboard/r2` — R2 Overall Report (`vw_r2_overall_report`)
 - `/dashboard/executive` — Executive R1/R2/R3 overview
-- `/dashboard/imports` — Import & Data Quality Center
+- `/dashboard/imports` — Import & Data Quality Center (upload, batches, matching/commit, resolve/ignore exceptions)
 
 ### Import APIs
 - `POST /api/import/quotations` — stage Quotation Tracker

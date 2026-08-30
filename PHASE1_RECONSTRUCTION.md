@@ -149,8 +149,11 @@ Nota:
     - Import Center menyokong upload 3 fail R3 (R3 / Office / Sales) dan
       butang **Commit R3**.
 
-15. **Data Quality actions UI** — masih belum dibangun; exceptions dipaparkan
-    dalam Import Center tetapi belum ada butang resolve/ignore dari UI.
+15. **Data Quality actions UI**
+    - Import Center kini memaparkan open exceptions dengan butang **Resolve**
+      dan **Ignore**.
+    - Kedua-duanya memanggil `PATCH /api/import/exceptions/[id]` dan
+      menghapus item dari senarai UI tanpa perlu refresh.
 
 ---
 

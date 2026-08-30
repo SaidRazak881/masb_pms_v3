@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import type { Database } from '@/types/database'
 
 type Batch = Database['public']['Tables']['import_batches']['Row']
+type Exception = Database['public']['Tables']['data_quality_exceptions']['Row']
 type ImportKind = 'quotations' | 'invoices' | 'cost-of-sales' | 'r2' | 'r3'
 
 const KINDS: Array<{ key: ImportKind; label: string; description: string }> = [
@@ -42,8 +43,9 @@ async function postJson(url: string, body: Record<string, unknown> = {}): Promis
   return { ok: response.ok, status: response.status, message: payload?.error ?? (response.ok ? undefined : 'unknown'), data: payload?.data }
 }
 
-export function ImportCenterClient({ batches: initialBatches }: { batches: Batch[] }) {
+export function ImportCenterClient({ batches: initialBatches, exceptions: initialExceptions }: { batches: Batch[]; exceptions: Exception[] }) {
   const [batches, setBatches] = useState<Batch[]>(initialBatches)
+  const [exceptions, setExceptions] = useState<Exception[]>(initialExceptions)
   const [file, setFile] = useState<File | null>(null)
   const [r3File, setR3File] = useState<File | null>(null)
   const [officeFile, setOfficeFile] = useState<File | null>(null)
@@ -75,6 +77,24 @@ export function ImportCenterClient({ batches: initialBatches }: { batches: Batch
     } catch (error) {
       setMessage(`Ralat rangkaian: ${error instanceof Error ? error.message : 'unknown'}`)
     } finally { setUploading(false) }
+  }
+
+  async function runExceptionAction(id: string, status: 'RESOLVED' | 'IGNORED') {
+    setBusyBatchId(id)
+    setMessage(null)
+    try {
+      const response = await fetch(`/api/import/exceptions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, resolution_note: status === 'RESOLVED' ? 'Resolved from Import Center' : 'Ignored from Import Center' }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) { setMessage(`Gagal kemas kini exception (${response.status}): ${payload?.error ?? 'unknown'}`); return }
+      setExceptions((current) => current.filter((item) => item.id !== id))
+      setMessage(`Exception ${status === 'RESOLVED' ? 'diselesaikan' : 'diabaikan'}.`)
+    } catch (error) {
+      setMessage(`Ralat rangkaian: ${error instanceof Error ? error.message : 'unknown'}`)
+    } finally { setBusyBatchId(null) }
   }
 
   async function runBatchAction(batchId: string, action: 'match-engine' | 'match' | 'commit' | 'r2-commit' | 'r3-commit') {
@@ -172,6 +192,29 @@ export function ImportCenterClient({ batches: initialBatches }: { batches: Batch
                     : batch.source_type === 'r3_sales_pipeline'
                       ? <Button size="sm" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'r3-commit')}>Commit R3</Button>
                       : <Button size="sm" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'commit')}>Commit</Button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="text-lg font-semibold">Data Quality Exceptions (Open)</h2>
+          <div className="mt-3 space-y-2">
+            {exceptions.length === 0 ? <p className="text-sm text-slate-500">Tiada exception terbuka.</p> : exceptions.map((exception) => (
+              <div key={exception.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">{exception.type}</p>
+                    <Badge className={exception.severity === 'HIGH' || exception.severity === 'CRITICAL' ? 'border-red-200 bg-red-50 text-red-700' : exception.severity === 'MEDIUM' || exception.severity === 'MED' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>{exception.severity}</Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">{exception.description}</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" variant="outline" disabled={busyBatchId === exception.id} onClick={() => runExceptionAction(exception.id, 'RESOLVED')}>Resolve</Button>
+                  <Button size="sm" variant="secondary" disabled={busyBatchId === exception.id} onClick={() => runExceptionAction(exception.id, 'IGNORED')}>Ignore</Button>
                 </div>
               </div>
             ))}

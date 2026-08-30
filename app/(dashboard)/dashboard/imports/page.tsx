@@ -53,26 +53,7 @@ export default async function ImportCenterPage() {
         <p className="mt-1 text-sm text-slate-500">Upload workbook, semak batch staging, dan pantau data quality exceptions.</p>
       </div>
 
-      <ImportCenterClient batches={batches} />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-lg font-semibold">Data Quality Exceptions (Open)</h2>
-            <div className="mt-3 space-y-2">
-              {exceptions.length === 0 ? <p className="text-sm text-slate-500">Tiada exception terbuka.</p> : exceptions.map((exception) => (
-                <div key={exception.id} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium">{exception.type}</p>
-                    <Badge className={exception.severity === 'HIGH' || exception.severity === 'CRITICAL' ? 'border-red-200 bg-red-50 text-red-700' : exception.severity === 'MEDIUM' || exception.severity === 'MED' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>{exception.severity}</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">{exception.description}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <ImportCenterClient batches={batches} exceptions={exceptions} />
     </div>
   )
 }

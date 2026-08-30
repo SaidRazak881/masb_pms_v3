@@ -15,7 +15,7 @@ async function loadDashboardData(): Promise<DashboardData> {
   const { data: authData, error: authError } = await supabase.auth.getUser()
   if (authError || !authData.user) throw new Error('SESSION_REQUIRED')
   const [{ count: programs, error: programsError }, { count: invoices, error: invoicesError }, { count: actions, error: actionsError }, { count: sessions, error: sessionsError }, { data: actionRows, error: actionRowsError }, { data: overdueRows, error: overdueRowsError }, { data: incomeRows, error: incomeError }, { data: paymentRows, error: paymentError }, { data: funnelRows, error: funnelError }] = await Promise.all([
-    supabase.from('programs').select('*', { count: 'exact', head: true }),
+    supabase.from('programs').select('*', { count: 'exact', head: true }).neq('current_stage', 'LOST'),
     supabase.from('invoices').select('*', { count: 'exact', head: true }),
     supabase.from('vw_action_required').select('*', { count: 'exact', head: true }),
     supabase.from('training_sessions').select('*', { count: 'exact', head: true }),

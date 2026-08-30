@@ -12,8 +12,8 @@ export default async function Programs() {
 
   return <div className="space-y-6 p-6">
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Program 360</h1>
-      <p className="mt-1 text-sm text-slate-500">Program sebagai spine untuk quotation, PO, invoice, payment dan training.</p>
+      <h1 className="text-2xl font-bold tracking-tight">Program 360°</h1>
+      <p className="mt-1 text-sm text-slate-500">Programs are the operational spine for quotations, POs, invoices, payments and training.</p>
     </div>
     <ProgramsTable rows={rows} />
   </div>

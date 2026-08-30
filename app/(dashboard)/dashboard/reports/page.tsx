@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { StatusBadge, type StatusType } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import type { Database } from '@/types/database'
 
@@ -17,19 +18,20 @@ const money = (value: number | null | undefined): string =>
 const pct = (value: number | null | undefined): string =>
   value == null ? '—' : `${Number(value).toFixed(2)}%`
 
-const statusClass = (status: string | null, tone: 'r1' | 'r2') => {
-  switch (status?.toUpperCase()) {
-    case 'PAID':
-    case 'COMPLETED':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    case 'PARTIAL':
-    case 'PENDING_DATA':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
-    case 'OVERDUE':
-      return 'border-red-200 bg-red-50 text-red-700'
-    default:
-      return tone === 'r1' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-blue-200 bg-blue-50 text-blue-700'
-  }
+const canonicalStatus = (status: string | null | undefined): StatusType | null => {
+  const value = status?.toUpperCase().replaceAll(' ', '_')
+  const supported: StatusType[] = [
+    'PAID', 'UNPAID', 'PARTIAL', 'OVERDUE', 'PENDING', 'INVOICED', 'DRAFT',
+    'UPCOMING', 'PENDING_DATA', 'COMPLETED', 'APPROVED', 'REJECTED', 'SECURED',
+    'IN_PROGRESS', 'LOST', 'QUOTATION_SENT',
+  ]
+  return value && supported.includes(value as StatusType) ? (value as StatusType) : null
+}
+
+function ReportStatus({ status }: { status: string | null | undefined }) {
+  const canonical = canonicalStatus(status)
+  if (canonical) return <StatusBadge status={canonical} label={status ?? undefined} />
+  return <Badge variant="default">{status ?? '—'}</Badge>
 }
 
 function ExportButton({ type, label }: { type: 'r1' | 'r2' | 'r3'; label: string }) {
@@ -39,6 +41,11 @@ function ExportButton({ type, label }: { type: 'r1' | 'r2' | 'r3'; label: string
     </Button>
   )
 }
+
+const metricValueClass = 'mt-2 whitespace-nowrap text-[32px] font-semibold leading-[1.2] tabular-nums tracking-tight'
+const tableClass = 'w-full min-w-[1000px] text-[13px] leading-[1.4]'
+const tableHeadClass = 'sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500'
+const cellClass = 'p-3'
 
 export default async function ReportsPage() {
   const supabase = await createClient()
@@ -69,50 +76,49 @@ export default async function ReportsPage() {
   const r3Stages = new Set(r3.map((row) => row.current_stage ?? '').filter(Boolean)).size
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
           <p className="mt-1 text-sm text-slate-500">Laporan agregat R1 / R2 / R3 daripada view Supabase. Gunakan butang CSV untuk eksport.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ExportButton type="r1" label="CSV R1" />
           <ExportButton type="r2" label="CSV R2" />
           <ExportButton type="r3" label="CSV R3" />
         </div>
       </div>
 
-      {/* R1 */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">R1 — Income Statement</h2>
           <Button asChild size="sm"><Link href="/dashboard/r1">Buka R1</Link></Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Invoiced</p><p className="mt-2 text-2xl font-bold">{money(r1Invoiced)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Net Profit</p><p className="mt-2 text-2xl font-bold">{money(r1Profit)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Paid Invoices</p><p className="mt-2 text-2xl font-bold">{r1Paid}/{r1.length}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Lewat / Belum Bayar</p><p className="mt-2 text-2xl font-bold text-amber-700">{r1Overdue}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Invoiced</p><p className={metricValueClass}>{money(r1Invoiced)}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Net Profit</p><p className={metricValueClass}>{money(r1Profit)}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Paid Invoices</p><p className={metricValueClass}>{r1Paid}/{r1.length}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Lewat / Belum Bayar</p><p className={`${metricValueClass} text-amber-700`}>{r1Overdue}</p></CardContent></Card>
         </div>
         {r1Error ? <p className="text-xs text-red-600">R1: {r1Error.message}</p> : null}
         <Card>
           <CardContent className="p-4 sm:p-6">
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-[1000px] text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className={tableClass}>
+                <thead className={tableHeadClass}>
                   <tr><th className="p-3 text-left">Program</th><th className="p-3 text-left">Company</th><th className="p-3 text-left">Invoice</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Cost</th><th className="p-3 text-right">Net Profit</th><th className="p-3 text-right">Profit %</th><th className="p-3 text-left">Status</th></tr>
                 </thead>
                 <tbody>
                   {r1.slice(0, 25).map((row, index) => (
-                    <tr key={`${row.program_code}-${row.invoice_no}-${index}`} className="border-t transition-colors hover:bg-slate-50">
-                      <td className="p-3 font-medium text-blue-600">{row.program_code ?? '—'}</td>
-                      <td className="max-w-[200px] truncate p-3">{row.company_name ?? '—'}</td>
-                      <td className="p-3">{row.invoice_no ?? '—'}</td>
-                      <td className="p-3 text-right tabular-nums">{money(row.total_value)}</td>
-                      <td className="p-3 text-right tabular-nums">{row.cost_of_sales_amount == null ? '—' : money(row.cost_of_sales_amount)}</td>
-                      <td className="p-3 text-right tabular-nums">{row.net_profit == null ? '—' : money(row.net_profit)}</td>
-                      <td className="p-3 text-right tabular-nums">{pct(row.profit_pct)}</td>
-                      <td className="p-3"><Badge className={statusClass(row.payment_status, 'r1')}>{row.payment_status ?? '—'}</Badge></td>
+                    <tr key={`${row.program_code}-${row.invoice_no}-${index}`} className="border-t border-slate-200 transition-colors odd:bg-white even:bg-slate-50/50 hover:bg-slate-50">
+                      <td className={`${cellClass} font-medium text-blue-600`}>{row.program_code ?? '—'}</td>
+                      <td className={`${cellClass} max-w-[200px] truncate`}>{row.company_name ?? '—'}</td>
+                      <td className={cellClass}>{row.invoice_no ?? '—'}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{money(row.total_value)}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{row.cost_of_sales_amount == null ? '—' : money(row.cost_of_sales_amount)}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{row.net_profit == null ? '—' : money(row.net_profit)}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{pct(row.profit_pct)}</td>
+                      <td className={cellClass}><ReportStatus status={row.payment_status} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -123,37 +129,36 @@ export default async function ReportsPage() {
         </Card>
       </section>
 
-      {/* R2 */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">R2 — Training Report</h2>
           <Button asChild size="sm"><Link href="/dashboard/r2">Buka R2</Link></Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Sessions</p><p className="mt-2 text-2xl font-bold">{r2Sessions}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Participants</p><p className="mt-2 text-2xl font-bold">{r2Participants}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Bumiputera</p><p className="mt-2 text-2xl font-bold">{r2Bumi}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Non-Bumiputera</p><p className="mt-2 text-2xl font-bold">{r2Non}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Sessions</p><p className={metricValueClass}>{r2Sessions}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Participants</p><p className={metricValueClass}>{r2Participants}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Bumiputera</p><p className={metricValueClass}>{r2Bumi}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Non-Bumiputera</p><p className={metricValueClass}>{r2Non}</p></CardContent></Card>
         </div>
         {r2Error ? <p className="text-xs text-red-600">R2: {r2Error.message}</p> : null}
         <Card>
           <CardContent className="p-4 sm:p-6">
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-[1000px] text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className={tableClass}>
+                <thead className={tableHeadClass}>
                   <tr><th className="p-3 text-left">Program</th><th className="p-3 text-left">Session</th><th className="p-3 text-left">Company</th><th className="p-3 text-left">Category</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Bumi</th><th className="p-3 text-right">Non-Bumi</th><th className="p-3 text-left">Status</th></tr>
                 </thead>
                 <tbody>
                   {r2.slice(0, 25).map((row, index) => (
-                    <tr key={`${row.program_code}-${row.session_title}-${row.category}-${index}`} className="border-t transition-colors hover:bg-slate-50">
-                      <td className="p-3 font-medium text-blue-600">{row.program_code ?? '—'}</td>
-                      <td className="max-w-[260px] truncate p-3">{row.session_title ?? '—'}</td>
-                      <td className="max-w-[180px] truncate p-3">{row.company_name ?? '—'}</td>
-                      <td className="p-3"><Badge>{row.category ?? '—'}</Badge></td>
-                      <td className="p-3 text-right tabular-nums">{row.total_count ?? 0}</td>
-                      <td className="p-3 text-right tabular-nums">{row.bumiputera_count ?? 0}</td>
-                      <td className="p-3 text-right tabular-nums">{row.non_bumiputera_count ?? 0}</td>
-                      <td className="p-3"><Badge className={statusClass(row.r2_status, 'r2')}>{row.r2_status ?? '—'}</Badge></td>
+                    <tr key={`${row.program_code}-${row.session_title}-${row.category}-${index}`} className="border-t border-slate-200 transition-colors odd:bg-white even:bg-slate-50/50 hover:bg-slate-50">
+                      <td className={`${cellClass} font-medium text-blue-600`}>{row.program_code ?? '—'}</td>
+                      <td className={`${cellClass} max-w-[260px] truncate`}>{row.session_title ?? '—'}</td>
+                      <td className={`${cellClass} max-w-[180px] truncate`}>{row.company_name ?? '—'}</td>
+                      <td className={cellClass}><Badge variant="default">{row.category ?? '—'}</Badge></td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{row.total_count ?? 0}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{row.bumiputera_count ?? 0}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{row.non_bumiputera_count ?? 0}</td>
+                      <td className={cellClass}><ReportStatus status={row.r2_status} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,36 +169,35 @@ export default async function ReportsPage() {
         </Card>
       </section>
 
-      {/* R3 */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">R3 — Sales Funnel</h2>
           <Button asChild size="sm"><Link href="/dashboard/programs">Buka Program 360</Link></Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Forecast</p><p className="mt-2 text-2xl font-bold">{money(r3Forecast)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Weighted</p><p className="mt-2 text-2xl font-bold">{money(r3Weighted)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Secured</p><p className="mt-2 text-2xl font-bold">{money(r3Secured)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Stages</p><p className="mt-2 text-2xl font-bold">{r3Stages}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Forecast</p><p className={metricValueClass}>{money(r3Forecast)}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Weighted</p><p className={metricValueClass}>{money(r3Weighted)}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Secured</p><p className={metricValueClass}>{money(r3Secured)}</p></CardContent></Card>
+          <Card><CardContent className="p-5"><p className="text-sm font-medium text-slate-500">Stages</p><p className={metricValueClass}>{r3Stages}</p></CardContent></Card>
         </div>
         {r3Error ? <p className="text-xs text-red-600">R3: {r3Error.message}</p> : null}
         <Card>
           <CardContent className="p-4 sm:p-6">
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-[1000px] text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className={tableClass}>
+                <thead className={tableHeadClass}>
                   <tr><th className="p-3 text-left">Program</th><th className="p-3 text-left">Company</th><th className="p-3 text-left">Title</th><th className="p-3 text-left">Stage</th><th className="p-3 text-right">Forecast</th><th className="p-3 text-right">Weighted</th><th className="p-3 text-right">Secured</th></tr>
                 </thead>
                 <tbody>
-                  {r3.slice(0, 25).map((row) => (
-                    <tr key={row.program_code ?? row.title ?? undefined} className="border-t transition-colors hover:bg-slate-50">
-                      <td className="p-3 font-medium text-blue-600">{row.program_code ?? '—'}</td>
-                      <td className="max-w-[180px] truncate p-3">{row.company_name ?? '—'}</td>
-                      <td className="max-w-[260px] truncate p-3">{row.title ?? '—'}</td>
-                      <td className="p-3"><Badge>{row.current_stage ?? '—'}</Badge></td>
-                      <td className="p-3 text-right tabular-nums">{money(row.forecast_value)}</td>
-                      <td className="p-3 text-right tabular-nums">{money(row.weighted_value)}</td>
-                      <td className="p-3 text-right tabular-nums">{money(row.secured_value)}</td>
+                  {r3.slice(0, 25).map((row, index) => (
+                    <tr key={`${row.program_code}-${row.title}-${index}`} className="border-t border-slate-200 transition-colors odd:bg-white even:bg-slate-50/50 hover:bg-slate-50">
+                      <td className={`${cellClass} font-medium text-blue-600`}>{row.program_code ?? '—'}</td>
+                      <td className={`${cellClass} max-w-[180px] truncate`}>{row.company_name ?? '—'}</td>
+                      <td className={`${cellClass} max-w-[260px] truncate`}>{row.title ?? '—'}</td>
+                      <td className={cellClass}><Badge variant="default">{row.current_stage ?? '—'}</Badge></td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{money(row.forecast_value)}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{money(row.weighted_value)}</td>
+                      <td className={`${cellClass} text-right tabular-nums`}>{money(row.secured_value)}</td>
                     </tr>
                   ))}
                 </tbody>

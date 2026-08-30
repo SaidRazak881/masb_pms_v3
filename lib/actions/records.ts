@@ -31,9 +31,40 @@ const ALLOWED_FIELDS: Record<EditableTable, readonly string[]> = {
   participant_roster: ['training_session_id','full_name','cert_no','is_bumiputera','participation_type','week_label','attendance_date'],
 }
 
+const REQUIRED_FIELDS: Partial<Record<EditableTable, readonly string[]>> = {
+  programs: ['title', 'company_id'],
+  companies: ['canonical_name'],
+  contacts: ['company_id', 'full_name'],
+  quotations: ['program_id', 'quotation_no_raw'],
+  purchase_orders: ['program_id'],
+  invoices: ['program_id', 'invoice_no'],
+  payments: ['invoice_id', 'amount'],
+  cost_of_sales: ['invoice_id', 'cost_of_sales_amount', 'mimos_academy_cost', 'commission', 'bro_incentive'],
+  training_sessions: ['program_id', 'session_title'],
+  participant_counts: ['training_session_id'],
+  participant_roster: ['training_session_id', 'full_name'],
+}
+
 function sanitize(table: EditableTable, changes: Record<string, unknown>) {
   const allowed = new Set(ALLOWED_FIELDS[table])
   return Object.fromEntries(Object.entries(changes).filter(([key]) => allowed.has(key)))
+}
+
+function validateRequired(table: EditableTable, values: Record<string, unknown>) {
+  const missing = (REQUIRED_FIELDS[table] ?? []).find((key) => {
+    const value = values[key]
+    return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
+  })
+  return missing ?? null
+}
+
+function revalidateData() {
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/programs')
+  revalidatePath('/dashboard/programs/[code]', 'page')
+  revalidatePath('/dashboard/r1')
+  revalidatePath('/dashboard/r2')
+  revalidatePath('/dashboard/reports')
 }
 
 export async function updateEditableRecord(input: { table: EditableTable; id: string; changes: Record<string, unknown> }): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -51,12 +82,24 @@ export async function updateEditableRecord(input: { table: EditableTable; id: st
   const { error } = await (supabase as any).from(input.table).update(changes).eq('id', input.id)
   if (error) return { ok: false, error: error.message }
 
-  // The database audit trigger records old/new row values and authenticated user.
-  revalidatePath('/dashboard')
-  revalidatePath('/dashboard/programs')
-  revalidatePath('/dashboard/programs/[code]', 'page')
-  revalidatePath('/dashboard/r1')
-  revalidatePath('/dashboard/r2')
-  revalidatePath('/dashboard/reports')
+  revalidateData()
   return { ok: true }
+}
+
+export async function createEditableRecord(input: { table: EditableTable; values: Record<string, unknown> }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'Authentication required.' }
+  if (!can(user.role, ROLE_MAP[input.table])) return { ok: false, error: 'You do not have permission to create this record.' }
+
+  const values = sanitize(input.table, input.values)
+  if (!Object.keys(values).length) return { ok: false, error: 'No editable fields were provided.' }
+  const missing = validateRequired(input.table, values)
+  if (missing) return { ok: false, error: `Required field missing: ${missing}.` }
+
+  const supabase = await createClient()
+  const { data, error } = await (supabase as any).from(input.table).insert(values).select('id').single()
+  if (error || !data?.id) return { ok: false, error: error?.message ?? 'Unable to create record.' }
+
+  revalidateData()
+  return { ok: true, id: data.id }
 }

@@ -70,3 +70,45 @@ PENTING:
   digunakan. Ia sudah pernah teraplikasi sebelum operasi migrasi; `0009`
   adalah gantian. Removing its history entry does NOT undo the schema — it only
   makes remote history match the canonical repo. If in doubt, do not delete.
+
+---
+
+## Prompt tambahan — Deepen (read-only, tiada DELETE)
+
+```
+Anda masih operator Supabase untuk repo MIMOS Academy PMS
+branch `arena/01a05068-masb-pms-v3`. Operasi ini READ-ONLY. JANGAN DELETE,
+JANGAN UPDATE, JANGAN insert. Tugas: bandingkan dua migration-history records
+0009 dan lapor.
+
+1. Query:
+   select version, name, statements, length(statements::text) as statements_length
+   from supabase_migrations.schema_migrations
+   where name like '0009%'
+   order by version;
+
+2. Bandingkan `statements` bagi kedua-dua record:
+   - Boleh guna SQL CTE + `statements ='...'` atau normalkan text
+     (trim, whitespace, semicolon) sebelum bandingkan.
+   - Laporan: SAMA atau BERBEZA. Jika berbeza, senaraikan perbezaan paling
+     significant (bukan seluruh teks).
+
+3. Jangan delete kedua-duanya. Jangan ubah version. Jangan ubah function.
+4. Laporan akhir:
+   - record count for 0009
+   - SAMA / BERBEZA
+   - Adakah `public.commit_import_batch` function definition kini betul dengan
+     canonical repo (plain net_profit) - check via `pg_get_functiondef`.
+   - Skor risiko: LOW / MED / HIGH. Jika SAMA dan function betul = LOW.
+```
+
+---
+
+## Keputusan semasa (2026-08-30)
+
+- GPT memilih **SKIP** penyingkiran `0007` dan `0009` history.
+- Ini keputusan yang diterima buat masa ini: tidak ada perubahan skema, dan
+  cleanup hanya relevant untuk `supabase migration list`/CLI workflow.
+- Jika aplikasi live berjalan tanpa `supabase db push`, duplicate history
+  tidak menghalang deployment.
+

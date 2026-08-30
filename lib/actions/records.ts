@@ -34,21 +34,16 @@ function sanitize(table: EditableTable, changes: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(changes).filter(([key]) => allowed.has(key)))
 }
 
-export async function updateEditableRecord(input: {
-  table: EditableTable
-  id: string
-  changes: Record<string, unknown>
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function updateEditableRecord(input: { table: EditableTable; id: string; changes: Record<string, unknown> }): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser()
   if (!user) return { ok: false, error: 'Authentication required.' }
   if (!can(user.role, ROLE_MAP[input.table])) return { ok: false, error: 'You do not have permission to edit this record.' }
   if (!input.id) return { ok: false, error: 'Record ID is required.' }
-
   const changes = sanitize(input.table, input.changes)
   if (!Object.keys(changes).length) return { ok: false, error: 'No editable fields were provided.' }
 
   const supabase = await createClient()
-  const { error } = await supabase.from(input.table).update(changes).eq('id', input.id)
+  const { error } = await (supabase as any).from(input.table).update(changes).eq('id', input.id)
   if (error) return { ok: false, error: error.message }
 
   revalidatePath('/dashboard')

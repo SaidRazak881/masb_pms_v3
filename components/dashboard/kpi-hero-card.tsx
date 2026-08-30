@@ -8,18 +8,20 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 
 export type KpiTrend = { direction: 'up' | 'down' | 'neutral'; value: string; label?: string }
-export type KpiHeroCardProps = { title: string; value: string | number; unit?: string; subtitle?: string; icon: LucideIcon; tone?: 'slate' | 'emerald' | 'blue' | 'amber' | 'rose'; trend?: KpiTrend; progress?: { current: number; target: number; label?: string }; href?: string; badgeText?: string; className?: string }
+export type KpiHeroCardProps = { title: string; value: string | number; unit?: string; subtitle?: string; icon: LucideIcon; tone?: 'slate' | 'emerald' | 'blue' | 'indigo' | 'amber' | 'rose' | 'violet' | 'cyan'; trend?: KpiTrend; progress?: { current: number; target: number; label?: string }; href?: string; badgeText?: string; className?: string }
 
-const toneStyles = {
+type ToneStyle = { iconBg: string; accent: string; borderHover: string; glow: string; progress: string }
+const corporate: Record<'slate' | 'emerald' | 'blue' | 'amber' | 'rose', ToneStyle> = {
   slate: { iconBg: 'bg-slate-100 text-slate-700 ring-slate-200', accent: 'text-slate-900', borderHover: 'hover:border-slate-300', glow: 'group-hover:bg-slate-500/5', progress: 'bg-slate-700' },
   emerald: { iconBg: 'bg-emerald-50 text-emerald-700 ring-emerald-200', accent: 'text-emerald-700', borderHover: 'hover:border-emerald-300', glow: 'group-hover:bg-emerald-500/5', progress: 'bg-emerald-600' },
   blue: { iconBg: 'bg-blue-50 text-blue-700 ring-blue-200', accent: 'text-blue-700', borderHover: 'hover:border-blue-300', glow: 'group-hover:bg-blue-500/5', progress: 'bg-blue-600' },
   amber: { iconBg: 'bg-amber-50 text-amber-700 ring-amber-200', accent: 'text-amber-700', borderHover: 'hover:border-amber-300', glow: 'group-hover:bg-amber-500/5', progress: 'bg-amber-600' },
   rose: { iconBg: 'bg-red-50 text-red-700 ring-red-200', accent: 'text-red-700', borderHover: 'hover:border-red-300', glow: 'group-hover:bg-red-500/5', progress: 'bg-red-600' },
 }
+const alias: Record<NonNullable<KpiHeroCardProps['tone']>, keyof typeof corporate> = { slate: 'slate', emerald: 'emerald', blue: 'blue', indigo: 'blue', amber: 'amber', rose: 'rose', violet: 'blue', cyan: 'blue' }
 
 export function KpiHeroCard({ title, value, unit, subtitle, icon: Icon, tone = 'slate', trend, progress, href, badgeText, className }: KpiHeroCardProps) {
-  const styles = toneStyles[tone]
+  const styles = corporate[alias[tone]]
   const content = <Card className={cn('group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md', styles.borderHover, className)}>
     <div className={cn('pointer-events-none absolute inset-0 transition-colors duration-200', styles.glow)} />
     <CardContent className="p-5">

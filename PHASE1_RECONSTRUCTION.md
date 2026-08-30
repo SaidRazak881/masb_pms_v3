@@ -31,6 +31,7 @@
 0006_matching_resolution.sql
 0008_restrict_financial_update_delete_rls.sql
 0009_safe_commit_engine_generated_net_profit.sql
+0010_r2_commit_engine.sql
 20260829012000_seed_2026_excel_data.sql
 20260829012100_seed_2026_excel_rows.sql
 20260829012200_seed_2026_workbook_rows.sql
@@ -94,6 +95,20 @@ Nota:
     - Bertukar menjadi blueprint (bukan executable).
     - Fungsi role dan RLS kewangan diselaraskan dengan migration kanonik.
 
+11. **R2 import + commit engine**
+    - `lib/imports/r2-overall-parser.ts` — two-pass parser Overall + Attendance.
+    - `lib/imports/r2-import.ts` — staging R2 rows.
+    - `app/api/import/r2/route.ts` — upload R2 workbook.
+    - `supabase/migrations/0010_r2_commit_engine.sql` — `commit_r2_batch()`
+      (companies → programs → training_sessions → participant_counts).
+    - `app/api/import/r2/commit/route.ts` — commit R2 batch.
+    - `participant_counts` kini menyokong `workshop_count` + `training_count`.
+
+12. **Skrin R1 & R2**
+    - `/dashboard/r1` membaca `vw_r1_income_statement`.
+    - `/dashboard/r2` membaca `vw_r2_overall_report`.
+    - Navigasi sidebar dikemas kini.
+
 ---
 
 ## 4. Status sahkan
@@ -108,9 +123,11 @@ Nota:
 
 ## 5. Perkara yang masih perlu diikuti (bukan blocker repo)
 
-- Parser R2 (`participant_counts`, `participant_roster`) belum dibina; jangan
-  cuba import R2 dengan parser palsu.
-- Skrin UI R1/R2, Executive, Reports, Data Quality/Import Center, Settings masih
-  belum dibangunkan.
-- Setelah ada environment sebenar (jika ada), jalankan migrasi mengikut urutan
-  di atas, kemudian import `cost_of_sales_2026.xlsx`.
+- `participant_roster` masih hanya di-*stage* (attendance list belum dipetakan
+  secara deterministik ke sesi); commit participant roster memerlukan mapping
+  yang lebih jelas daripada source workbook.
+- Skrin UI Executive, Reports, Data Quality/Import Center, Settings masih belum
+  dibangunkan.
+- Setelah ada environment sebenar (jika ada), jalankan migrations mengikut
+  urutan di atas, kemudian import `cost_of_sales_2026.xlsx` dan
+  `R2 Overall Report 2026 (1).xlsx`.

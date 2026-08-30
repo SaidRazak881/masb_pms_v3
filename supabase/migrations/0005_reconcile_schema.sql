@@ -104,9 +104,11 @@ create table if not exists public.participant_counts (
   id uuid primary key default gen_random_uuid(),
   training_session_id uuid not null references public.training_sessions(id) on delete cascade,
   category text not null default 'OTHERS',
+  workshop_count int not null default 0 check (workshop_count >= 0),
+  training_count int not null default 0 check (training_count >= 0),
   bumiputera_count int not null default 0 check (bumiputera_count >= 0),
   non_bumiputera_count int not null default 0 check (non_bumiputera_count >= 0),
-  total_count int generated always as (bumiputera_count + non_bumiputera_count) stored,
+  total_count int generated always as (workshop_count + training_count) stored,
   source_file text,
   source_sheet text,
   source_row int,
@@ -194,6 +196,11 @@ drop policy if exists participant_counts_read on public.participant_counts;
 create policy participant_counts_read on public.participant_counts for select to authenticated
   using (public.current_user_role() in ('super_admin','admin','manager','viewer','pic'));
 
+-- Additive support for R2 Overall worksheet (workshop/training sub-columns).
+alter table public.participant_counts
+  add column if not exists workshop_count int not null default 0,
+  add column if not exists training_count int not null default 0;
+
 drop policy if exists participant_counts_write on public.participant_counts for all to authenticated
   using (public.current_user_role() in ('super_admin','admin','pic'))
   with check (public.current_user_role() in ('super_admin','admin','pic'));
@@ -243,6 +250,8 @@ select
   ts.end_date,
   ts.r2_status,
   pc.category,
+  pc.workshop_count,
+  pc.training_count,
   pc.bumiputera_count,
   pc.non_bumiputera_count,
   pc.total_count

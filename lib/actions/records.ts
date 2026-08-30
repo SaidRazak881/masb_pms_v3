@@ -53,6 +53,7 @@ export async function updateEditableRecord(input: {
 
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/programs')
+  revalidatePath('/dashboard/programs/[code]', 'page')
   revalidatePath('/dashboard/r1')
   revalidatePath('/dashboard/r2')
   revalidatePath('/dashboard/reports')

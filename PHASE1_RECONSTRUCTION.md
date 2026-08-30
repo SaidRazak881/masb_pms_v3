@@ -109,7 +109,15 @@ Nota:
     - `/dashboard/r2` membaca `vw_r2_overall_report`.
     - Navigasi sidebar dikemas kini.
 
-13. **Import & Data Quality Center**
+13. **Executive Dashboard**
+    - `/dashboard/executive` — aggregation R1/R2/R3 dalam satu halaman
+      (gated `super_admin/admin/manager`).
+    - Kad KPI: R3 forecast / weighted / secured; R1 invoiced / collected /
+      outstanding / net profit; R2 sessions / participants.
+    - Carta Recharts: pipeline by stage, R2 category, R1 payment status,
+      R2 demographics, dan R3 forecast/weighted/secured.
+
+14. **Import & Data Quality Center**
     - `/dashboard/imports` — senarai batches, exceptions, dan upload workbook.
     - `components/imports/import-center-client.tsx` — upload Quotation / Invoice /
       Cost of Sales / R2 melalui API routes yang disediakan.

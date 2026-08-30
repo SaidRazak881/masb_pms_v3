@@ -37,7 +37,7 @@ export default async function R2Page() {
   const [{ data: rosterRows, error: rosterError }, { data: sessionRows, error: sessionError }, { data: programRows, error: programError }] = await Promise.all([
     supabase.from('participant_roster').select('*').order('full_name', { ascending: true }).limit(500),
     supabase.from('training_sessions').select('*'),
-    supabase.from('programs').select('id, program_code, title'),
+    supabase.from('programs').select('id, program_code, title, needs_review'),
   ])
 
   const sessionById = new Map((sessionRows ?? []).map((row) => [row.id, row]))
@@ -50,6 +50,7 @@ export default async function R2Page() {
   const certified = roster.filter((row) => row.participation_type === 'CERTIFIED')
   const attended = roster.filter((row) => row.participation_type === 'ATTENDED')
   const rosterSessions = new Set(roster.map((row) => row.training_session_id).filter(Boolean)).size
+  const needsReview = roster.filter((row) => row.session?.r2_status === 'PENDING_DATA' || row.program?.needs_review)
   const hasRosterLoadError = Boolean(rosterError || sessionError || programError)
 
   return (
@@ -124,6 +125,12 @@ export default async function R2Page() {
             {hasRosterLoadError ? <Badge className="border-amber-200 bg-amber-50 text-amber-700">Data roster tidak lengkap</Badge> : null}
           </div>
 
+          {needsReview.length > 0 ? (
+            <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              {needsReview.length} baris tergolong dalam sesi attendance tanpa padanan exact dalam Overall report; ia telah dicipta sebagai sesi standalone dan masih perlu disemak (r2_status PENDING_DATA).
+            </p>
+          ) : null}
+
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full min-w-[1000px] text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -135,27 +142,32 @@ export default async function R2Page() {
                   <th className="p-3 text-left">Type</th>
                   <th className="p-3 text-left">Week</th>
                   <th className="p-3 text-left">Bumi</th>
+                  <th className="p-3 text-left">Review</th>
                   <th className="p-3 text-right">Source Row</th>
                 </tr>
               </thead>
               <tbody>
-                {roster.map((row) => (
-                  <tr key={row.id} className="border-t transition-colors hover:bg-slate-50">
-                    <td className="p-3 font-medium text-blue-600">{row.program?.program_code ?? '—'}</td>
-                    <td className="max-w-[280px] truncate p-3">{row.session?.session_title ?? '—'}</td>
-                    <td className="max-w-[240px] truncate p-3">{row.full_name}</td>
-                    <td className="p-3 text-xs">{row.cert_no ?? '—'}</td>
-                    <td className="p-3"><Badge className={row.participation_type === 'CERTIFIED' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}>{row.participation_type}</Badge></td>
-                    <td className="p-3">{row.week_label ?? '—'}</td>
-                    <td className="p-3">{row.is_bumiputera == null ? '—' : row.is_bumiputera ? 'Bumi' : 'Non-Bumi'}</td>
-                    <td className="p-3 text-right tabular-nums">{row.source_row ?? '—'}</td>
-                  </tr>
-                ))}
+                {roster.map((row) => {
+                  const needsReviewRow = row.session?.r2_status === 'PENDING_DATA' || row.program?.needs_review
+                  return (
+                    <tr key={row.id} className="border-t transition-colors hover:bg-slate-50">
+                      <td className="p-3 font-medium text-blue-600">{row.program?.program_code ?? '—'}</td>
+                      <td className="max-w-[280px] truncate p-3">{row.session?.session_title ?? '—'}</td>
+                      <td className="max-w-[240px] truncate p-3">{row.full_name}</td>
+                      <td className="p-3 text-xs">{row.cert_no ?? '—'}</td>
+                      <td className="p-3"><Badge className={row.participation_type === 'CERTIFIED' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}>{row.participation_type}</Badge></td>
+                      <td className="p-3">{row.week_label ?? '—'}</td>
+                      <td className="p-3">{row.is_bumiputera == null ? '—' : row.is_bumiputera ? 'Bumi' : 'Non-Bumi'}</td>
+                      <td className="p-3">{needsReviewRow ? <Badge className="border-amber-200 bg-amber-50 text-amber-700">Review</Badge> : '—'}</td>
+                      <td className="p-3 text-right tabular-nums">{row.source_row ?? '—'}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
           {roster.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Tiada participant roster. Import &amp; commit R2 untuk mengisi jadual ini.</p> : null}
-          {roster.length > 0 ? <p className="mt-3 text-xs text-slate-500">{certified.length} certified · {attended.length} attendance records. Menunjukkan sehingga 500 baris.</p> : null}
+          {roster.length > 0 ? <p className="mt-3 text-xs text-slate-500">{certified.length} certified · {attended.length} attendance records · {needsReview.length} perlu review. Menunjukkan sehingga 500 baris.</p> : null}
         </CardContent>
       </Card>
     </div>

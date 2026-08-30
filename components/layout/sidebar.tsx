@@ -11,20 +11,20 @@ export type NavItem = { title: string; href: string; icon: React.ComponentType<{
 export type NavSection = { section: string; items: NavItem[] }
 
 export const NAV_SECTIONS: NavSection[] = [
-  { section: 'Papan Pemuka & Analisis', items: [
-    { title: 'Dashboard Utama', href: '/dashboard', icon: LayoutDashboard },
+  { section: 'DASHBOARD & ANALYTICS', items: [
+    { title: 'Main Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { title: 'Executive Overview', href: '/dashboard/executive', icon: BarChart3, badge: 'R1-R3', badgeTone: 'bg-blue-100 text-blue-800' },
-    { title: 'Pusat Tindakan', href: '/dashboard/action-center', icon: AlertTriangle, badge: 'Kritikal', badgeTone: 'bg-rose-100 text-rose-800' },
+    { title: 'Action Center', href: '/dashboard/action-center', icon: AlertTriangle, badge: 'Critical', badgeTone: 'bg-rose-100 text-rose-800' },
   ] },
-  { section: 'Modul Program & Operasi', items: [
+  { section: 'PROGRAM & OPERATIONS', items: [
     { title: 'Program 360°', href: '/dashboard/programs', icon: Layers },
-    { title: 'R1 · Kewangan & Invois', href: '/dashboard/r1', icon: Receipt },
-    { title: 'R2 · Latihan & Peserta', href: '/dashboard/r2', icon: GraduationCap },
+    { title: 'R1 · Finance & Invoicing', href: '/dashboard/r1', icon: Receipt },
+    { title: 'R2 · Training & Participants', href: '/dashboard/r2', icon: GraduationCap },
   ] },
-  { section: 'Integriti & Konfigurasi', items: [
-    { title: 'Import & Kualiti Data', href: '/dashboard/imports', icon: Upload },
-    { title: 'Laporan & Eksport', href: '/dashboard/reports', icon: FileText },
-    { title: 'Tetapan Sistem', href: '/dashboard/settings', icon: Settings },
+  { section: 'DATA INTEGRITY & CONFIGURATION', items: [
+    { title: 'Import & Data Quality', href: '/dashboard/imports', icon: Upload },
+    { title: 'Reports & Export', href: '/dashboard/reports', icon: FileText },
+    { title: 'System Settings', href: '/dashboard/settings', icon: Settings },
   ] },
 ]
 
@@ -44,9 +44,9 @@ export function EnterpriseSidebar({ userEmail, userRole }: { userEmail: string; 
         {NAV_SECTIONS.map((group) => <div key={group.section}>{!collapsed && <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">{group.section}</p>}<div className={cn('mt-2 space-y-1', collapsed && 'mt-0')}>{group.items.map((item) => { const Icon = item.icon; const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)); return <Link key={item.href} href={item.href} title={collapsed ? item.title : undefined} className={cn('group flex items-center rounded-lg text-xs font-semibold transition-colors', collapsed ? 'justify-center px-2 py-2.5' : 'justify-between px-3 py-2', isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-900 hover:text-white')}><span className="flex min-w-0 items-center gap-2.5"><Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200')} />{!collapsed && <span className="truncate">{item.title}</span>}</span>{!collapsed && item.badge && <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', isActive ? 'bg-white/20 text-white' : item.badgeTone ?? 'bg-slate-800 text-slate-300')}>{item.badge}</span>}</Link> })}</div></div>)}
       </div>
       <div className="border-t border-slate-800/80 bg-slate-900/50 p-3">
-        <button type="button" onClick={() => setCollapsed((v) => !v)} className="mb-2 flex w-full items-center justify-center rounded-lg px-2 py-2 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label={collapsed ? 'Kembangkan sidebar' : 'Runtuhkan sidebar'}>{collapsed ? <Menu className="h-4 w-4" /> : <><X className="h-4 w-4" /><span className="ml-2 text-[11px] font-semibold">Runtuhkan menu</span></>}</button>
+        <button type="button" onClick={() => setCollapsed((v) => !v)} className="mb-2 flex w-full items-center justify-center rounded-lg px-2 py-2 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <Menu className="h-4 w-4" /> : <><X className="h-4 w-4" /><span className="ml-2 text-[11px] font-semibold">Collapse menu</span></>}</button>
         {!collapsed && <div className="mb-2 flex items-center gap-2 px-1"><Shield className="h-3.5 w-3.5 text-emerald-400" /><div className="min-w-0"><p className="truncate text-[11px] font-semibold text-white">{userEmail || 'admin@mimos.my'}</p><p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">{userRole?.replaceAll('_', ' ') || 'Super Admin'}</p></div></div>}
-        <button type="button" onClick={handleSignOut} title={collapsed ? 'Log Keluar' : undefined} className={cn('flex w-full items-center rounded-lg border border-slate-800 bg-slate-900/80 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white', collapsed ? 'justify-center px-2' : 'justify-center gap-2 px-3')}><LogOut className="h-3.5 w-3.5 text-slate-400" />{!collapsed && 'Log Keluar'}</button>
+        <button type="button" onClick={handleSignOut} title={collapsed ? 'Sign out' : undefined} className={cn('flex w-full items-center rounded-lg border border-slate-800 bg-slate-900/80 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white', collapsed ? 'justify-center px-2' : 'justify-center gap-2 px-3')}><LogOut className="h-3.5 w-3.5 text-slate-400" />{!collapsed && 'Sign out'}</button>
       </div>
     </aside>
   )

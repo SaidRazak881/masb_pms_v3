@@ -34,8 +34,13 @@ begin
   if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'invoices') then
     -- Drop the legacy broad "for all" policy from 0001 if present.
     execute 'drop policy if exists invoice_write on public.invoices';
+    execute 'drop policy if exists invoice_insert on public.invoices';
     execute 'drop policy if exists invoice_update on public.invoices';
     execute 'drop policy if exists invoice_delete on public.invoices';
+
+    -- invoices are created by the import/commit engine (admin/manager).
+    execute 'create policy invoice_insert on public.invoices for insert to authenticated
+      with check (public.current_user_role() in (''super_admin'',''admin'',''manager''))';
 
     execute 'create policy invoice_update on public.invoices for update to authenticated
       using (public.current_user_role() in (''super_admin'',''admin''))
@@ -53,8 +58,14 @@ begin
   -- ---------------------------------------------------------------
   if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'payments') then
     execute 'drop policy if exists payment_write on public.payments';
+    execute 'drop policy if exists payment_insert on public.payments';
     execute 'drop policy if exists payment_update on public.payments';
     execute 'drop policy if exists payment_delete on public.payments';
+
+    -- PIC follow-ups are preserved: PIC/admin can record a payment received,
+    -- but only admin can update/delete the financial record.
+    execute 'create policy payment_insert on public.payments for insert to authenticated
+      with check (public.current_user_role() in (''super_admin'',''admin'',''pic''))';
 
     execute 'create policy payment_update on public.payments for update to authenticated
       using (public.current_user_role() in (''super_admin'',''admin''))
@@ -72,8 +83,15 @@ begin
   -- ---------------------------------------------------------------
   if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'cost_of_sales') then
     execute 'drop policy if exists cost_of_sales_write on public.cost_of_sales';
+    execute 'drop policy if exists cost_of_sales_insert on public.cost_of_sales';
     execute 'drop policy if exists cost_of_sales_update on public.cost_of_sales';
     execute 'drop policy if exists cost_of_sales_delete on public.cost_of_sales';
+
+    -- cost_of_sales is written by the commit engine (super_admin/admin/manager),
+    -- which runs as an authenticated invoker. Keep INSERT available to those
+    -- roles even though UPDATE/DELETE are admin-only.
+    execute 'create policy cost_of_sales_insert on public.cost_of_sales for insert to authenticated
+      with check (public.current_user_role() in (''super_admin'',''admin'',''manager''))';
 
     execute 'create policy cost_of_sales_update on public.cost_of_sales for update to authenticated
       using (public.current_user_role() in (''super_admin'',''admin''))

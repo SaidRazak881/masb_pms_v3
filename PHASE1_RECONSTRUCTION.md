@@ -1,0 +1,116 @@
+# Phase 1 Reconstruction — Repository Ownership Decision Record
+
+> **Keputusan pemilik (2026-08-30):** Repo dianggap rosak/bermasalah, tiada
+> environment live/sandbox yang boleh dipercayai, dan semua keputusan fakulti
+> berada pada Architecture Owner. Dokumen ini merekodkan keputusan dan
+> pembinaan semula.
+
+---
+
+## 1. Keputusan muktamad
+
+| Isu | Keputusan |
+|---|---|
+| Sumber skema yang boleh dijalankan | **`supabase/migrations/`** sahaja. `02-schema.sql` = blueprint/rujukan sahaja. |
+| Deployment/live | Dianggap **tidak wujud** sehingga terbukti sebaliknya. Tiada rawatan ke atas Supabase/Vercel di sisi repo ini. |
+| Bot GPT / external connector | **Bukan sumber kebenaran.** Hasil GPT adalah input sahaja; semua perubahan dikawal oleh repo/branch `arena/01a05068-masb-pms-v3`. |
+| Mekanisme role RLS | **`public.current_user_role()`** (lookup `profiles`) — satu-satunya mekanisme yang wujud dalam migrations. `current_role()` dicantumkan ke mekanisme yang sama untuk konsistensi blueprint. |
+| RLS kewangan | `invoices`, `cost_of_sales`: INSERT oleh `super_admin/admin/manager`; `payments`: INSERT oleh `super_admin/admin/pic`; UPDATE/DELETE ketiga-tiga = `super_admin/admin` sahaja. |
+| Commit engine `cost_of_sales` | Guna **migration `0009`** (tanpa `DROP COLUMN`). Jangan guna PR-#5 `0007`. |
+
+---
+
+## 2. Urutan migration yang mesti digunakan (dari repo)
+
+```
+0001_phase1.sql
+0002_harden_rbac_rls.sql
+0003_import_foundation.sql
+0004_production_commit_engine.sql
+0005_reconcile_schema.sql
+0006_matching_resolution.sql
+0008_restrict_financial_update_delete_rls.sql
+0009_safe_commit_engine_generated_net_profit.sql
+20260829012000_seed_2026_excel_data.sql
+20260829012100_seed_2026_excel_rows.sql
+20260829012200_seed_2026_workbook_rows.sql
+20260829012300_seed_2026_data_audit.sql
+```
+
+Nota:
+- `0006` diperlukan untuk fresh DB supaya `matching_confidence`/`matching_rule`
+  wujud; pada DB live yang sudah ada kolum ini ia adalah no-op.
+- `0007` **jangan digunakan** — ia mengandungi `DROP COLUMN net_profit`.
+- `0008` perlu didahului oleh jadual `cost_of_sales` (dicipta oleh `0005`);
+  migration ini juga mengendalikan DB yang belum ada jadual tersebut.
+- `0009` menggantikan `commit_import_batch()` dengan versi yang menyokong
+  kedua-dua bentuk `net_profit`.
+
+---
+
+## 3. Apa yang telah dibina/selaraskan dalam repo ini
+
+1. **`supabase/migrations/0005_reconcile_schema.sql`**
+   - Menambah `contacts`, `status_dictionary`, `company_alias_map`,
+     `cost_of_sales`, `participant_counts`, `participant_roster`.
+   - Menambah ruang keturunan (`source_file/source_sheet/source_row/row_hash`)
+     pada `programs`.
+   - Menambah `vw_r1_income_statement`, `vw_r2_overall_report`.
+   - RLS untuk semua jadual baru.
+
+2. **`supabase/migrations/0006_matching_resolution.sql`**
+   - Menambah `import_staging.matching_confidence`, `matching_rule` + indeks.
+
+3. **`supabase/migrations/0008_restrict_financial_update_delete_rls.sql`**
+   - INSERT/UPDATE/DELETE kewangan mengikut peranan yang ditetapkan di atas.
+   - Memastikan `cost_of_sales INSERT` dikekalkan (sebelum ini boleh hilang jika
+     polisi `for all` digugurkan).
+
+4. **`supabase/migrations/0009_safe_commit_engine_generated_net_profit.sql`**
+   - Pengganti selamat PR-#5 `0007`. Tiada `DROP COLUMN`.
+   - `commit_import_batch()` mengesan sama ada `net_profit` adalah generated
+     atau plain, dan memasukkan nilai dengan betul.
+
+5. **`lib/imports/matching-resolution-service.ts`**
+   - Menyelesaikan `target_table` + `target_record_id` untuk
+     quotation/invoice/cost-of-sales.
+
+6. **`app/api/import/[batchId]/match-engine/route.ts`** dan
+   **`app/api/import/[batchId]/match/route.ts`**
+   - Melengkapkan pipeline: parse → stage → match-engine → match → commit.
+
+7. **`lib/imports/matching-engine.ts`**
+   - Setuju dengan enum `ImportMatchingStatus`; duplicate dikesan via metadata,
+     bukan `matching_status='DUPLICATE'` (yang tidak sah di DB).
+
+8. **`lib/imports/exception-service.ts`**
+   - Tidak lagi merujuk status DB yang tidak wujud (`DUPLICATE`).
+
+9. **`types/database.ts`**
+   - Selaras dengan migration set: tambah semua jadual/view R1/R2, `import_commit_log`,
+     `matching_confidence`/`matching_rule`, dan provenance columns.
+
+10. **`02-schema.sql`**
+    - Bertukar menjadi blueprint (bukan executable).
+    - Fungsi role dan RLS kewangan diselaraskan dengan migration kanonik.
+
+---
+
+## 4. Status sahkan
+
+- `npm run typecheck` → PASS
+- `npm run build` → PASS
+- Route tree kini termasuk:
+  - `/api/import/{batchId}/match-engine`
+  - `/api/import/{batchId}/match`
+
+---
+
+## 5. Perkara yang masih perlu diikuti (bukan blocker repo)
+
+- Parser R2 (`participant_counts`, `participant_roster`) belum dibina; jangan
+  cuba import R2 dengan parser palsu.
+- Skrin UI R1/R2, Executive, Reports, Data Quality/Import Center, Settings masih
+  belum dibangunkan.
+- Setelah ada environment sebenar (jika ada), jalankan migrasi mengikut urutan
+  di atas, kemudian import `cost_of_sales_2026.xlsx`.

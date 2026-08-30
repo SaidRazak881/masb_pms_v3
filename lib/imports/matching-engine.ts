@@ -72,3 +72,79 @@ export async function persistMatchingResults(batchId:string, results:MatchingRes
   }
   return results
 }
+
+/**
+ * Maps a staging `source_type` to the production table it should be committed
+ * into. This is the piece that was never wired: staged rows kept
+ * `target_table = NULL`, so the commit RPC's
+ * `target_table in ('quotations','invoices','cost_of_sales')` predicate matched
+ * nothing and every `commit_import_batch` call was a silent no-op.
+ */
+export const TARGET_TABLE_BY_SOURCE_TYPE: Record<string, string> = {
+  quotation_tracker: 'quotations',
+  invoice_2026: 'invoices',
+  cost_of_sales_2026: 'cost_of_sales',
+}
+
+/** Reverse lookup used defensively by the commit RPC / target resolver. */
+export function targetTableForSourceType(sourceType: string): string | null {
+  return TARGET_TABLE_BY_SOURCE_TYPE[sourceType] ?? null
+}
+
+export type ResolveTargetsResult = {
+  batchId: string
+  resolved_target_table: number
+  unresolved_target_table: number
+}
+
+/**
+ * Pre-commit target resolution. Sets `target_table` on every staging row from its
+ * `source_type` so the commit engine can route it to the correct production
+ * table. `target_record_id` is intentionally left to the commit RPC (the RPC
+ * performs the guarded insert-or-reuse and then back-fills `target_record_id`),
+ * so a brand-new (empty-DB) import is no longer skipped.
+ */
+export async function resolveImportTargets(batchId:string, accessToken?:string):Promise<ResolveTargetsResult>{
+  const supabase=await createClient(accessToken)
+  const {data:rows,error:selectError}=await supabase.from('import_staging').select('id,source_type').eq('batch_id',batchId)
+  if(selectError) throw selectError
+  const staging=(rows??[]) as { id:string; source_type:string }[]
+  let resolved_target_table=0
+  let unresolved_target_table=0
+  // Group rows by the target table they map to, then batch-update in bulk.
+  const byTargetTable=new Map<string,string[]>()
+  for(const row of staging){
+    const targetTable=targetTableForSourceType(row.source_type)
+    if(targetTable){
+      resolved_target_table+=1
+      const ids=byTargetTable.get(targetTable)??[]
+      ids.push(row.id)
+      byTargetTable.set(targetTable,ids)
+    }else{
+      unresolved_target_table+=1
+    }
+  }
+  for(const [targetTable,ids] of byTargetTable){
+    const {error}=await supabase.from('import_staging').update({target_table:targetTable}).eq('batch_id',batchId).in('id',ids)
+    if(error) throw error
+  }
+  return {batchId,resolved_target_table,unresolved_target_table}
+}
+
+/**
+ * Full post-parse pipeline: run matching, persist the engine outcome, and resolve
+ * commit targets. Returns a summary of matched / ambiguous / unmatched rows plus
+ * the target-resolution counts.
+ */
+export async function runMatchingPipeline(batchId:string, accessToken?:string){
+  const results=await matchImportStaging(batchId,accessToken)
+  await persistMatchingResults(batchId,results,accessToken)
+  const resolved=await resolveImportTargets(batchId,accessToken)
+  const summary=results.reduce((acc,r)=>{
+    if(r.status==='MATCHED') acc.matched+=1
+    else if(r.status==='AMBIGUOUS'||r.status==='DUPLICATE') acc.ambiguous+=1
+    else acc.unmatched+=1
+    return acc
+  },{matched:0,ambiguous:0,unmatched:0})
+  return {batchId,results:results.length,summary,resolved}
+}

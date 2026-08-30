@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { DashboardOverview, dashboardMetricIcons } from '@/components/dashboard/dashboard-overview'
+import { DashboardOverview } from '@/components/dashboard/dashboard-overview'
 import type { Database } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,11 +42,11 @@ export default async function Dashboard() {
     const data = await loadDashboardData()
     const money = (value: number) => `RM ${value.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     const metrics = [
-      { label: 'Total Revenue', value: money(data.revenue), icon: dashboardMetricIcons.invoices, href: '/dashboard/r1', tone: 'blue' as const },
-      { label: 'Collected', value: money(data.collected), icon: dashboardMetricIcons.actions, href: '/dashboard/r1', tone: 'emerald' as const },
-      { label: 'Outstanding', value: money(data.outstanding), icon: dashboardMetricIcons.invoices, href: '/dashboard/action-center', tone: 'rose' as const },
-      { label: 'Forecast R3', value: money(data.forecast), icon: dashboardMetricIcons.programs, href: '/dashboard/programs', tone: 'blue' as const },
-      { label: 'Active Program', value: data.programs, icon: dashboardMetricIcons.programs, href: '/dashboard/programs', tone: 'slate' as const },
+      { label: 'Total Revenue', value: money(data.revenue), icon: 'invoices' as const, href: '/dashboard/r1', tone: 'blue' as const },
+      { label: 'Collected', value: money(data.collected), icon: 'actions' as const, href: '/dashboard/r1', tone: 'emerald' as const },
+      { label: 'Outstanding', value: money(data.outstanding), icon: 'invoices' as const, href: '/dashboard/action-center', tone: 'rose' as const },
+      { label: 'Forecast R3', value: money(data.forecast), icon: 'programs' as const, href: '/dashboard/programs', tone: 'blue' as const },
+      { label: 'Active Program', value: data.programs, icon: 'programs' as const, href: '/dashboard/programs', tone: 'slate' as const },
     ]
     return <div className="space-y-6 p-4 sm:p-6 lg:p-8"><div><h1 className="text-2xl font-bold tracking-tight text-slate-900">Papan Pemuka Operasi</h1><p className="mt-1 text-sm text-slate-500">Ringkasan masa nyata aktiviti program, kewangan dan tindakan penting.</p></div><DashboardOverview metrics={metrics} actions={data.actionRows} overdueAmount={data.overdueAmount} /></div>
   } catch (error) {

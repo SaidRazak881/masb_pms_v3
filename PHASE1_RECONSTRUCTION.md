@@ -109,6 +109,13 @@ Nota:
     - `/dashboard/r2` membaca `vw_r2_overall_report`.
     - Navigasi sidebar dikemas kini.
 
+13. **Import & Data Quality Center**
+    - `/dashboard/imports` — senarai batches, exceptions, dan upload workbook.
+    - `components/imports/import-center-client.tsx` — upload Quotation / Invoice /
+      Cost of Sales / R2 melalui API routes yang disediakan.
+    - Pautan dashboard (`Invoices`, `Training Sessions`) diubah ke `/r1` dan `/r2`
+      supaya tidak lagi menunjuk laluan yang belum wujud.
+
 ---
 
 ## 4. Status sahkan

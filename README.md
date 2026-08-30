@@ -51,6 +51,7 @@ npm run build      # production build
 - `/dashboard/programs/[code]`
 - `/dashboard/r1` — R1 Income Statement (`vw_r1_income_statement`)
 - `/dashboard/r2` — R2 Overall Report (`vw_r2_overall_report`) + Participant Roster / Attendance (`participant_roster`)
+- `/dashboard/reports` — consolidated R1/R2/R3 report pages with CSV export
 - `/dashboard/executive` — Executive R1/R2/R3 overview
 - `/dashboard/imports` — Import & Data Quality Center (upload, batches, matching/commit, resolve/ignore exceptions)
 
@@ -62,6 +63,7 @@ npm run build      # production build
 - `POST /api/import/r2/commit` — commit R2 batch (`commit_r2_batch` → overall, `commit_r2_roster` → attendance/participant roster, `audit_r2_roster` → consistency exceptions)
 - `POST /api/import/r3` — stage R3 funnel / office funnel / sales report
 - `POST /api/import/r3/commit` — commit R3 batch (`commit_r3_batch`)
+- `GET /api/reports/export?type=r1|r2|r3` — CSV export for the three report views
 - `POST /api/import/batches` — create batch
 - `GET/PATCH /api/import/batches/[batchId]` — inspect/update batch
 - `POST /api/import/batches/[batchId]/staging` — stage rows

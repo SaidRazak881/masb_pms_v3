@@ -168,6 +168,13 @@ Nota:
     - Kedua-duanya memanggil `PATCH /api/import/exceptions/[id]` dan
       menghapus item dari senarai UI tanpa perlu refresh.
 
+16. **Reports**
+    - `/dashboard/reports` — ringkasan R1 (Income), R2 (Training), R3
+      (Sales Funnel) dalam satu halaman.
+    - `GET /api/reports/export?type=r1|r2|r3` — CSV export dengan
+      content-disposition untuk kegunaan luar/reporting.
+    - Pautan **Reports** ditambah ke sidebar.
+
 ---
 
 ## 5. Perkara yang masih perlu diikuti (bukan blocker repo)

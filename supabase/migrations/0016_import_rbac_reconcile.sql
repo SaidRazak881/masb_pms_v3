@@ -5,8 +5,6 @@
 
 begin;
 
--- Import tables may be inspected by Super Admin and MASB Team, but only
--- Super Admin may create, mutate, delete, commit, or rollback an import.
 drop policy if exists import_batches_read on public.import_batches;
 drop policy if exists import_batches_insert on public.import_batches;
 drop policy if exists import_batches_update on public.import_batches;
@@ -39,15 +37,13 @@ create policy import_commit_log_select_import_roles on public.import_commit_log 
 create policy import_commit_log_insert_import_roles on public.import_commit_log for insert to authenticated
   with check (public.current_user_role()='super_admin');
 
--- Preserve the complete legacy import implementation while replacing only
--- its obsolete role guard. pg_get_functiondef() lets this migration retain
--- all existing import parsing/commit logic without duplicating it here.
+-- Keep the complete production import implementation from migration 0004,
+-- but replace its obsolete role guard with the new Super Admin-only rule.
 do $$
 declare
   v_sql text;
 begin
-  select pg_get_functiondef(p.oid)
-    into v_sql
+  select pg_get_functiondef(p.oid) into v_sql
   from pg_proc p
   join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public'
@@ -58,20 +54,19 @@ begin
   if v_sql is not null then
     v_sql := replace(
       v_sql,
-      "if public.current_user_role() not in ('super_admin','admin','manager') then raise exception 'IMPORT_FORBIDDEN'; end if;",
-      "if public.current_user_role() <> 'super_admin' then raise exception 'IMPORT_FORBIDDEN'; end if;"
+      'if public.current_user_role() not in (''super_admin'',''admin'',''manager'') then raise exception ''IMPORT_FORBIDDEN''; end if;',
+      'if public.current_user_role() <> ''super_admin'' then raise exception ''IMPORT_FORBIDDEN''; end if;'
     );
     execute v_sql;
   end if;
 end $$;
 
--- Rollback is also a bulk-import mutation and must remain Super Admin-only.
+-- Rollback is also a bulk-import mutation and must be Super Admin-only.
 do $$
 declare
   v_sql text;
 begin
-  select pg_get_functiondef(p.oid)
-    into v_sql
+  select pg_get_functiondef(p.oid) into v_sql
   from pg_proc p
   join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public'
@@ -82,8 +77,8 @@ begin
   if v_sql is not null then
     v_sql := replace(
       v_sql,
-      "if public.current_user_role() not in ('super_admin','admin') then raise exception 'IMPORT_FORBIDDEN'; end if;",
-      "if public.current_user_role() <> 'super_admin' then raise exception 'IMPORT_FORBIDDEN'; end if;"
+      'if public.current_user_role() not in (''super_admin'',''admin'') then raise exception ''IMPORT_FORBIDDEN''; end if;',
+      'if public.current_user_role() <> ''super_admin'' then raise exception ''IMPORT_FORBIDDEN''; end if;'
     );
     execute v_sql;
   end if;

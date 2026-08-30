@@ -4,9 +4,9 @@ import type { NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // API import routes remain authenticated but must never receive a browser /login redirect.
-  // Their route handlers own the JSON 401/403 response semantics.
-  if (pathname.startsWith('/api/import/')) {
+  // API routes remain authenticated but must never receive a browser /login redirect.
+  // Their route handlers own the JSON 401/403 response semantics (import, reports, settings).
+  if (pathname.startsWith('/api/')) {
     return updateSession(request, { redirectUnauthenticated: false })
   }
 

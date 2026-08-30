@@ -180,6 +180,13 @@ Nota:
       pipeline history, quotations, purchase orders, invoices/payments, dan
       training sessions + participant roster.
 
+18. **Settings & master data**
+    - `/dashboard/settings` — pengurusan role/aktif pengguna (bukan sendiri),
+      company aliases, dan status dictionary.
+    - API routes settings dengan auth super_admin/admin.
+    - Middleware dikemas kini supaya semua `/api/*` tidak redirect browser ke
+      `/login`; route API sendiri pulangkan JSON 401/403.
+
 ---
 
 ## 5. Perkara yang masih perlu diikuti (bukan blocker repo)

@@ -32,7 +32,7 @@
 
 - [ ] `/login` loads (200).
 - [ ] `/dashboard` redirects to `/login` when unauthenticated.
-- [ ] `/dashboard/r1`, `/dashboard/r2`, `/dashboard/reports`, `/dashboard/imports` load after login.
+- [ ] `/dashboard/r1`, `/dashboard/r2`, `/dashboard/reports`, `/dashboard/imports`, `/dashboard/settings` load after login (settings is admin-only).
 - [ ] Unauthenticated API requests to `/api/import/*` return 401/405 JSON.
 - [ ] `npm run typecheck` and `npm run build` pass in CI.
 

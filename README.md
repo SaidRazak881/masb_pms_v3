@@ -54,6 +54,10 @@ npm run build      # production build
 - `/dashboard/reports` — consolidated R1/R2/R3 report pages with CSV export
 - `/dashboard/executive` — Executive R1/R2/R3 overview
 - `/dashboard/imports` — Import & Data Quality Center (upload, batches, matching/commit, resolve/ignore exceptions)
+- `/dashboard/settings` — admin master data management (user roles, company aliases, status dictionary)
+- `PATCH /api/settings/profiles` — update user role/active state (super_admin/admin)
+- `POST /api/settings/company-aliases` — add company alias (super_admin/admin)
+- `POST /api/settings/status-dictionary` — add/upsert raw→canonical status mapping (super_admin/admin)
 
 ### Import APIs
 - `POST /api/import/quotations` — stage Quotation Tracker

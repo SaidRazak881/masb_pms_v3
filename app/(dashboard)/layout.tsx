@@ -4,19 +4,12 @@ import { EnterpriseTopbar } from '@/components/layout/topbar'
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const { user, role } = await requireUser()
-
   return (
-    <div className="min-h-screen bg-slate-50/70 antialiased">
-      {/* Enterprise Nav Sidebar */}
+    <div className="min-h-screen bg-slate-50 antialiased">
       <EnterpriseSidebar userEmail={user.email ?? ''} userRole={role ?? 'user'} />
-
-      {/* Main Content Area */}
-      <div className="flex flex-col lg:pl-64">
-        {/* Sticky Topbar */}
+      <div className="flex min-h-screen flex-col pl-0 lg:pl-[var(--sidebar-width,260px)] transition-[padding] duration-200">
         <EnterpriseTopbar userEmail={user.email ?? ''} userRole={role ?? 'user'} />
-
-        {/* Dynamic Page Views */}
-        <main className="flex-1 pb-16">{children}</main>
+        <main className="min-w-0 flex-1 pb-16">{children}</main>
       </div>
     </div>
   )

@@ -1,3 +1,44 @@
-@tailwind base;@tailwind components;@tailwind utilities;
-:root{--background:210 40% 98%;--foreground:222 47% 11%;--card:0 0% 100%;--border:214 32% 91%;--primary:221 83% 53%;--muted:215 16% 47%;--destructive:0 72% 51%}
-*{box-sizing:border-box}body{margin:0;background:hsl(var(--background));color:hsl(var(--foreground));font-family:Arial,Helvetica,sans-serif}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --border: 214 32% 91%;
+  --primary: 221 83% 53%;
+  --muted: 215 16% 47%;
+  --destructive: 0 72% 51%;
+  --brand-navy: #0F172A;
+  --brand-royal: #2563EB;
+  --brand-royal-hover: #1D4ED8;
+  --canvas: #F8FAFC;
+  --surface: #FFFFFF;
+  --subtle-border: #E2E8F0;
+  --text-secondary: #64748B;
+  --success: #059669;
+  --success-surface: #ECFDF5;
+  --warning: #D97706;
+  --warning-surface: #FFFBEB;
+  --danger: #DC2626;
+  --danger-surface: #FEF2F2;
+  --info: #0284C7;
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: hsl(var(--foreground));
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+button, input, select, textarea { font: inherit; }
+
+@media (max-width: 767px) {
+  body { overflow-x: hidden; }
+}
+
+.tabular-nums { font-variant-numeric: tabular-nums; }

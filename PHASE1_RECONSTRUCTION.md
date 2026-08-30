@@ -113,6 +113,8 @@ Nota:
     - `/dashboard/imports` — senarai batches, exceptions, dan upload workbook.
     - `components/imports/import-center-client.tsx` — upload Quotation / Invoice /
       Cost of Sales / R2 melalui API routes yang disediakan.
+    - Boleh jalankan **Match → Resolve → Commit** terus dari UI untuk setiap batch
+      (R2 menggunakan `POST /api/import/r2/commit`).
     - Pautan dashboard (`Invoices`, `Training Sessions`) diubah ke `/r1` dan `/r2`
       supaya tidak lagi menunjuk laluan yang belum wujud.
 

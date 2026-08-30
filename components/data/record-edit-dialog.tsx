@@ -91,16 +91,16 @@ export function RecordEditDialog({
   }
 
   return <>
-    <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => { setDraft(values); setError(null); setOpen(true) }}>
+    <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 text-xs" onClick={() => { setDraft(values); setError(null); setOpen(true) }}>
       <Edit3 className="h-3.5 w-3.5" /> Edit
     </Button>
-    {open ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-label={`Edit ${title}`}>
-      <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <div><p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Edit Record</p><h2 className="mt-0.5 text-lg font-semibold text-slate-900">{title}</h2></div>
-          <button type="button" onClick={closeEditor} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close editor"><X className="h-5 w-5" /></button>
+    {open ? <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-3 sm:p-4" role="dialog" aria-modal="true" aria-label={`Edit ${title}`}>
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
+          <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Edit Record</p><h2 className="mt-0.5 truncate text-lg font-semibold text-slate-900">{title}</h2></div>
+          <button type="button" onClick={closeEditor} className="ml-3 shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close editor"><X className="h-5 w-5" /></button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             {fields.map((field) => {
               const value = draft[field.key]
@@ -114,7 +114,7 @@ export function RecordEditDialog({
           {error ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{error}</p> : null}
           {dirty ? <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">You have unsaved changes. Save them or discard them before closing.</p> : null}
         </div>
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:justify-end sm:px-5 sm:py-4">
           <Button type="button" variant="outline" onClick={discard} disabled={isPending}>Discard Changes</Button>
           <Button type="button" onClick={save} disabled={!dirty || isPending} className="gap-1.5 bg-blue-600 hover:bg-blue-700"><Save className="h-4 w-4" />{isPending ? 'Saving...' : 'Save Changes'}</Button>
         </div>

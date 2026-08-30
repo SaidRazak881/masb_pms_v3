@@ -15,7 +15,6 @@ import {
   Settings,
   LogOut,
   Shield,
-  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -33,7 +32,7 @@ export type NavSection = {
   items: NavItem[]
 }
 
-const NAV_SECTIONS: NavSection[] = [
+export const NAV_SECTIONS: NavSection[] = [
   {
     section: 'Papan Pemuka & Analisis',
     items: [
@@ -77,11 +76,13 @@ export function EnterpriseSidebar({
 
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200/90 bg-slate-950 text-slate-100 lg:flex z-30">
-      {/* Brand Header */}
+      {/* Brand Header — official MIMOS Academy icon */}
       <div className="flex h-16 items-center gap-3 border-b border-slate-800/80 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md">
-          <Building2 className="h-5 w-5" />
-        </div>
+        <img
+          src="/mimos-icon.svg"
+          alt="MIMOS Academy"
+          className="h-9 w-9 shrink-0 rounded-lg shadow-md ring-1 ring-slate-700/60"
+        />
         <div>
           <h2 className="text-sm font-bold tracking-tight text-white">MIMOS Academy</h2>
           <p className="text-[10px] font-medium tracking-wider text-slate-400 uppercase">PMS · Enterprise R1/R2/R3</p>

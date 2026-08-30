@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ChainStepper, type ChainStep } from '@/components/programs/chain-stepper'
 import type { Row } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -41,6 +42,109 @@ function paymentClass(status: string | null) {
     case 'OVERDUE': return 'border-red-200 bg-red-50 text-red-700'
     default: return 'border-amber-200 bg-amber-50 text-amber-700'
   }
+}
+
+function buildChainSteps(
+  program: Program,
+  quotations: Quotation[],
+  purchaseOrders: PurchaseOrder[],
+  invoices: Invoice[],
+  payments: Payment[],
+  trainingSessions: TrainingSession[]
+): ChainStep[] {
+  const invoicedTotal = invoices.reduce((sum, row) => sum + Number(row.total_value ?? 0), 0)
+  const paidTotal = payments.reduce((sum, row) => sum + Number(row.amount ?? 0), 0)
+
+  const hasQuotation = quotations.length > 0
+  const hasPO = purchaseOrders.length > 0
+  const hasInvoice = invoices.length > 0
+  const fullyPaid = hasInvoice && paidTotal >= invoicedTotal
+  const hasTraining = trainingSessions.length > 0
+  const trainingCompleted = trainingSessions.some((s) => s.r2_status === 'COMPLETED')
+
+  const latestPayment = payments[0]
+  const latestInvoice = invoices[0]
+  const latestPO = purchaseOrders[0]
+  const latestQuotation = quotations[0]
+  const latestSession = trainingSessions[0]
+
+  const base: Array<Omit<ChainStep, 'status'>> = [
+    {
+      id: 'funnel',
+      label: 'Corong',
+      description: 'Peluang jualan didaftarkan ke dalam corong R3 dan disahkan sebagai prospek sah.',
+      icon: 'funnel',
+      date: date(program.lead_date),
+      amount: Number(program.forecast_value ?? 0),
+      detail: program.current_stage?.replaceAll('_', ' '),
+    },
+    {
+      id: 'quotation',
+      label: 'Sebut Harga',
+      description: 'Sebut harga (quotation) disediakan dan dikemukakan kepada pelanggan.',
+      icon: 'quotation',
+      date: date(latestQuotation?.quotation_date),
+      amount: quotations.reduce((sum, row) => sum + Number(row.final_price ?? 0), 0),
+      detail: hasQuotation ? `${quotations.length} sebut harga` : 'Tiada sebut harga',
+    },
+    {
+      id: 'po',
+      label: 'PO',
+      description: 'Purchase Order (PO) diterima daripada pelanggan sebagai komitmen pembelian.',
+      icon: 'po',
+      date: date(latestPO?.po_date),
+      amount: purchaseOrders.reduce((sum, row) => sum + Number(row.po_value ?? 0), 0),
+      detail: hasPO ? `${purchaseOrders.length} PO diterima` : 'Menunggu PO',
+    },
+    {
+      id: 'invoice',
+      label: 'Invois',
+      description: 'Invois rasmi dikeluarkan kepada pelanggan berdasarkan nilai PO.',
+      icon: 'invoice',
+      date: date(latestInvoice?.invoice_date),
+      amount: invoicedTotal,
+      detail: hasInvoice ? `${invoices.length} invois dikeluarkan` : 'Belum diinvois',
+    },
+    {
+      id: 'payment',
+      label: 'Bayaran',
+      description: 'Kutipan bayaran diterima dan diselaraskan dengan invois.',
+      icon: 'payment',
+      date: date(latestPayment?.payment_date),
+      amount: paidTotal,
+      detail: hasInvoice
+        ? fullyPaid
+          ? 'Bayaran penuh diterima'
+          : `Baki RM ${(invoicedTotal - paidTotal).toLocaleString('en-MY', { maximumFractionDigits: 0 })}`
+        : 'Menunggu bayaran',
+    },
+    {
+      id: 'training',
+      label: 'Latihan R2',
+      description: 'Sesi latihan / bengkel R2 dilaksanakan dan dilaporkan selesai.',
+      icon: 'training',
+      date: date(latestSession?.start_date),
+      amount: hasTraining ? trainingSessions.length : 0,
+      detail: hasTraining
+        ? trainingCompleted
+          ? 'Latihan selesai'
+          : 'Latihan dalam pelaksanaan'
+        : 'Belum berjadual',
+    },
+  ]
+
+  const completedFlags = [true, hasQuotation, hasPO, hasInvoice, fullyPaid, trainingCompleted]
+  const statuses: ChainStep['status'][] = completedFlags.map((done) => (done ? 'completed' : 'upcoming'))
+
+  if (program.current_stage === 'LOST') {
+    const firstPending = statuses.findIndex((s) => s === 'upcoming')
+    if (firstPending !== -1) statuses[firstPending] = 'error'
+  } else {
+    const firstPending = statuses.findIndex((s) => s === 'upcoming')
+    if (firstPending !== -1) statuses[firstPending] = 'current'
+  }
+
+  return base.map((step, idx) => ({ ...step, status: statuses[idx] }))
 }
 
 export default async function Program360({ params }: { params: Promise<{ code: string }> }) {
@@ -107,6 +211,8 @@ export default async function Program360({ params }: { params: Promise<{ code: s
     paymentsByInvoice.set(payment.invoice_id, list)
   }
 
+  const chainSteps = buildChainSteps(program, quotations, purchaseOrders, invoices, payments, trainingSessions)
+
   return (
     <main className="space-y-6 p-6">
       <a href="/dashboard/programs" className="text-sm text-blue-600">← Program list</a>
@@ -138,6 +244,18 @@ export default async function Program360({ params }: { params: Promise<{ code: s
             <div>Sector: <span className="text-slate-700">{program.sector ?? '—'}</span></div>
             <div>Source: <span className="text-slate-700">{program.source_file ?? program.source_sheet ?? '—'}{program.source_row ? ` (row ${program.source_row})` : ''}</span></div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Garis Masa Program 360°</CardTitle>
+          <p className="text-xs text-slate-500">
+            Perjalanan program dari Corong sehingga Latihan R2, dijana daripada data sebenar Supabase.
+          </p>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          <ChainStepper steps={chainSteps} />
         </CardContent>
       </Card>
 

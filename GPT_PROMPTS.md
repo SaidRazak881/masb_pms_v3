@@ -1,6 +1,13 @@
 # Prompts for the GPT assistant (Supabase + Vercel access)
 
-Code-side work happens in this repo (Arena agent, branch `arena/01a04f1d-masb-pms-v3`).
+> **STATUS: SUPERSEDED (2026-08-30).**
+> The repository has been reconstructed under `PHASE1_RECONSTRUCTION.md`.
+> `supabase/migrations/` is now the canonical executable schema, the import
+> pipeline is wired in-repo, and decision-making no longer depends on GPT.
+> Keep this file only as an optional audit prompt for live infra; the app
+> reference is now `PHASE1_RECONSTRUCTION.md`.
+
+Code-side work happens in this repo (Arena agent).
 GPT handles the things that need live Supabase/Vercel access. Copy-paste one prompt
 per task, in order. Paste GPT's "REPORT" blocks back into the Arena chat so the code
 side can react.

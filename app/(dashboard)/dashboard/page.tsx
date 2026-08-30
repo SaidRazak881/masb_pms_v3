@@ -83,9 +83,9 @@ export default async function Dashboard() {
     const data = await loadDashboardData()
     const metrics = [
       { label: 'Programs', value: data.programs, icon: dashboardMetricIcons.programs, href: '/dashboard/programs', tone: 'bg-blue-50 text-blue-700' },
-      { label: 'Invoices', value: data.invoices, icon: dashboardMetricIcons.invoices, href: '/dashboard/financials/invoices', tone: 'bg-violet-50 text-violet-700' },
+      { label: 'Invoices', value: data.invoices, icon: dashboardMetricIcons.invoices, href: '/dashboard/r1', tone: 'bg-violet-50 text-violet-700' },
       { label: 'Action Items', value: data.actions, icon: dashboardMetricIcons.actions, href: '/dashboard/action-center', tone: 'bg-amber-50 text-amber-700' },
-      { label: 'Training Sessions', value: data.sessions, icon: dashboardMetricIcons.sessions, href: '/dashboard/training', tone: 'bg-emerald-50 text-emerald-700' },
+      { label: 'Training Sessions', value: data.sessions, icon: dashboardMetricIcons.sessions, href: '/dashboard/r2', tone: 'bg-emerald-50 text-emerald-700' },
     ]
 
     return (

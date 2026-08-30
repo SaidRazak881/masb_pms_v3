@@ -9,6 +9,35 @@ export type ProductionCommitResult = {
   inserted_cost_of_sales: number
 }
 
+export type R2CommitResult = {
+  batch_id: string
+  committed_at: string
+  affected_records: number
+  inserted_companies: number
+  inserted_programs: number
+  inserted_sessions: number
+  inserted_categories: number
+}
+
+export type R2RosterCommitResult = {
+  batch_id: string
+  committed_at: string
+  affected_records: number
+  inserted_roster: number
+  matched_sessions: number
+  created_sessions: number
+  created_programs: number
+  created_exceptions: number
+}
+
+export type R2RosterAuditResult = {
+  batch_id: string
+  audited_at: string
+  checked_sessions: number
+  mismatch_sessions: number
+  created_exceptions: number
+}
+
 export type RollbackResult = {
   batch_id: string
   rolled_back_at: string
@@ -18,7 +47,7 @@ export type RollbackResult = {
 type RpcResponse<T> = { data: T[] | null; error: { message: string } | null }
 
 type RpcClient = {
-  rpc(name: string, args: Record<string, string>): PromiseLike<RpcResponse<ProductionCommitResult | RollbackResult>>
+  rpc(name: string, args: Record<string, string>): PromiseLike<RpcResponse<ProductionCommitResult | RollbackResult | R2CommitResult | R2RosterCommitResult | R2RosterAuditResult>>
 }
 
 const asRpcClient = (client: unknown): RpcClient => client as RpcClient
@@ -30,6 +59,33 @@ export async function commitProductionBatch(batchId: string, accessToken?: strin
   const result = response.data?.[0]
   if (!result || !('affected_records' in result)) throw new Error('COMMIT_RESULT_NOT_RETURNED')
   return result as ProductionCommitResult
+}
+
+export async function commitR2Batch(batchId: string, accessToken?: string): Promise<R2CommitResult> {
+  const client = asRpcClient(await createClient(accessToken))
+  const response = await client.rpc('commit_r2_batch', { p_batch_id: batchId })
+  if (response.error) throw new Error(response.error.message)
+  const result = response.data?.[0]
+  if (!result || !('affected_records' in result)) throw new Error('R2_COMMIT_RESULT_NOT_RETURNED')
+  return result as R2CommitResult
+}
+
+export async function commitR2Roster(batchId: string, accessToken?: string): Promise<R2RosterCommitResult> {
+  const client = asRpcClient(await createClient(accessToken))
+  const response = await client.rpc('commit_r2_roster', { p_batch_id: batchId })
+  if (response.error) throw new Error(response.error.message)
+  const result = response.data?.[0]
+  if (!result || !('affected_records' in result) || !('inserted_roster' in result)) throw new Error('R2_ROSTER_COMMIT_RESULT_NOT_RETURNED')
+  return result as R2RosterCommitResult
+}
+
+export async function auditR2Roster(batchId: string, accessToken?: string): Promise<R2RosterAuditResult> {
+  const client = asRpcClient(await createClient(accessToken))
+  const response = await client.rpc('audit_r2_roster', { p_batch_id: batchId })
+  if (response.error) throw new Error(response.error.message)
+  const result = response.data?.[0]
+  if (!result || !('checked_sessions' in result)) throw new Error('R2_ROSTER_AUDIT_RESULT_NOT_RETURNED')
+  return result as R2RosterAuditResult
 }
 
 export async function rollbackProductionBatch(batchId: string, accessToken?: string): Promise<RollbackResult> {

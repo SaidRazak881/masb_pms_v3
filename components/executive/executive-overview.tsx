@@ -1,0 +1,122 @@
+'use client'
+
+import { Bar, BarChart, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+type StageDatum = { name: string; count: number }
+type CategoryDatum = { name: string; count: number }
+type StatusDatum = { name: string; count: number }
+
+type ExecutiveData = {
+  r3: { stages: StageDatum[]; secured: number; weighted: number; forecast: number }
+  r1: { statuses: StatusDatum[]; outstanding: number }
+  r2: { categories: CategoryDatum[]; b: number; nb: number }
+}
+
+const STAGE_COLORS = ['#2563eb', '#0ea5e9', '#06b6d4', '#8b5cf6', '#d946ef', '#f59e0b', '#ef4444']
+const CATEGORY_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6']
+
+export function ExecutiveOverview({ r3, r1, r2 }: ExecutiveData) {
+  const stageData = r3.stages.map((stage, index) => ({ ...stage, color: STAGE_COLORS[index % STAGE_COLORS.length] }))
+  const categoryData = r2.categories.map((category, index) => ({ ...category, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }))
+  const statusData = r1.statuses.map((status) => ({ ...status, name: status.name.replaceAll('_', ' ') }))
+  const bmData = [{ name: 'Bumiputera', value: r2.b }, { name: 'Non-Bumiputera', value: r2.nb }]
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">R3 — Pipeline by Stage</CardTitle></CardHeader>
+        <CardContent>
+          {stageData.length === 0 ? <EmptyNote /> : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stageData} margin={{ left: -20, right: 10, top: 10 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={70} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" name="Programs" radius={[4, 4, 0, 0]}>
+                  {stageData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">R2 — Participants by Category</CardTitle></CardHeader>
+        <CardContent>
+          {categoryData.length === 0 ? <EmptyNote /> : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie dataKey="count" data={categoryData} outerRadius={100} label>
+                  {categoryData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">R1 — Payment Status</CardTitle></CardHeader>
+        <CardContent>
+          {statusData.length === 0 ? <EmptyNote /> : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={statusData} margin={{ left: -20, right: 10, top: 10 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" name="Invoices" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">R2 — Demographics</CardTitle></CardHeader>
+        <CardContent>
+          {bmData.every((item) => item.value === 0) ? <EmptyNote /> : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie dataKey="value" data={bmData} outerRadius={100} label>
+                  <Cell fill="#10b981" />
+                  <Cell fill="#0ea5e9" />
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader><CardTitle className="text-lg">R3 — Forecast, Weighted &amp; Secured Value</CardTitle></CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={[
+              { name: 'Forecast', value: r3.forecast },
+              { name: 'Weighted', value: r3.weighted },
+              { name: 'Secured', value: r3.secured },
+            ]} margin={{ left: -10, right: 10, top: 10 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(value: number | string) => `RM ${Number(value).toLocaleString('en-MY', { minimumFractionDigits: 2 })}`} />
+              <Legend />
+              <Line type="monotone" dataKey="value" name="Value (RM)" stroke="#2563eb" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function EmptyNote() {
+  return <p className="py-10 text-center text-sm text-slate-500">Tiada data untuk komponen ini.</p>
+}

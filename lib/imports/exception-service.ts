@@ -43,11 +43,15 @@ function candidates(row: StagingRow): ExceptionCandidate[] {
   if (validation.includes('MISSING_COMPANY')) add('MISSING_COMPANY', 'MEDIUM', 'Company is missing from source row.')
   if (validation.includes('MISSING_INVOICE_NUMBER')) add('MISSING_INVOICE_NUMBER', 'HIGH', 'Invoice number is missing from source row.')
   if (validation.includes('INVALID_STATUS')) add('INVALID_STATUS', 'MEDIUM', 'Source status is invalid.')
-  // 'DUPLICATE' is not a valid DB matching_status — the engine maps duplicates to
-  // 'AMBIGUOUS' and records engine_status='DUPLICATE' in metadata (see matching-engine.ts).
-  const engineStatus = text(metadata.engine_status)?.toUpperCase()
-  if (engineStatus === 'DUPLICATE') add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
-  if (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS' || engineStatus === 'UNMATCHED') add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
+  // The matching engine maps duplicate rows to 'AMBIGUOUS' and stores
+  // duplicate=true in metadata. matching_status='DUPLICATE' is not a valid
+  // DB value for import_staging, so only detect duplicates from metadata.
+  const isDuplicate = text(metadata.duplicate)?.toLowerCase() === 'true'
+  if (isDuplicate) add('DUPLICATE', 'HIGH', 'Duplicate staging row detected by the matching engine.')
+  // A genuinely unmatched row is NONE or AMBIGUOUS. Duplicate rows are
+  // reported as DUPLICATE (not UNMATCHED) to avoid double-counting; PENDING
+  // means the matching step has not run yet, so it is not an exception.
+  if (!isDuplicate && (row.matching_status === 'NONE' || row.matching_status === 'AMBIGUOUS')) add('UNMATCHED', 'HIGH', 'No deterministic match was found for this staging row.')
   return result
 }
 

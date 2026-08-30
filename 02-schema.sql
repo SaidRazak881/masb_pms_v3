@@ -1,7 +1,13 @@
 -- =====================================================================
 -- Sistem Pengurusan R1/R2/R3 MIMOS Academy — Production Schema
 -- Target: Supabase (Postgres 15)
--- Run via: supabase db push   (place in supabase/migrations/0001_init.sql)
+--
+-- IMPORTANT (Phase 1 reconstruction):
+-- `supabase/migrations/` is the CANONICAL executable schema. This file is the
+-- centralized BLUEPRINT/reference used for review and design. Where the two
+-- differ, `supabase/migrations/` wins.
+--
+-- Run via: supabase db push  (apply supabase/migrations/*.sql in filename order)
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -234,18 +240,19 @@ create index idx_payments_invoice on public.payments(invoice_id);
 create table public.cost_of_sales (
   id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references public.invoices(id) on delete cascade,
+  invoice_no text,
+  invoice_value numeric(14,2),
+  collection numeric(14,2),
   cost_of_sales_amount numeric(14,2) not null default 0,
   mimos_academy_cost numeric(14,2) not null default 0,
   commission numeric(14,2) not null default 0,
   bro_incentive numeric(14,2) not null default 0,
-  net_profit numeric(14,2) generated always as (
-    coalesce((select i.invoice_value_excl_sst from public.invoices i where i.id = invoice_id), 0)
-    - cost_of_sales_amount - mimos_academy_cost - commission - bro_incentive
-  ) stored,
+  net_profit numeric(14,2),
+  profit_percentage numeric(5,2),
   had_formula_error boolean not null default false,   -- true if source had #REF!/#NAME?
   source_file text, source_sheet text, source_row int, row_hash text,
   created_at timestamptz not null default now(),
-  unique (invoice_id, source_file)
+  unique (invoice_id)
 );
 
 create table public.training_sessions (
@@ -267,11 +274,13 @@ create table public.participant_counts (
   id uuid primary key default gen_random_uuid(),
   training_session_id uuid not null references public.training_sessions(id) on delete cascade,
   category participant_category not null default 'OTHERS',
-  bumiputera_count int not null default 0,
-  non_bumiputera_count int not null default 0,
-  total_count int generated always as (bumiputera_count + non_bumiputera_count) stored,
+  workshop_count int not null default 0 check (workshop_count >= 0),
+  training_count int not null default 0 check (training_count >= 0),
+  bumiputera_count int not null default 0 check (bumiputera_count >= 0),
+  non_bumiputera_count int not null default 0 check (non_bumiputera_count >= 0),
+  total_count int generated always as (workshop_count + training_count) stored,
   source_file text, source_sheet text, source_row int, row_hash text,
-  unique (training_session_id, category, source_file)
+  unique (training_session_id, category)
 );
 
 create table public.participant_roster (
@@ -280,7 +289,14 @@ create table public.participant_roster (
   full_name text not null,
   cert_no text,
   is_bumiputera boolean,
-  source_file text, source_sheet text, source_row int, row_hash text
+  participation_type text not null default 'CERTIFIED' check (participation_type in ('CERTIFIED','ATTENDED')),
+  week_label text check (week_label in ('week1','week2')),
+  attendance_date date,
+  commit_key text generated always as (
+    training_session_id::text || '|' || lower(full_name) || '|' || participation_type || '|' || coalesce(cert_no,'') || '|' || coalesce(week_label,'')
+  ) stored,
+  source_file text, source_sheet text, source_row int, row_hash text,
+  unique (commit_key)
 );
 
 -- ---------------------------------------------------------------------
@@ -477,10 +493,10 @@ alter table public.data_quality_exceptions enable row level security;
 alter table public.company_alias_map enable row level security;
 alter table public.audit_log enable row level security;
 
--- helper: current user's role from JWT claim (set via custom_access_token_hook)
+-- helper: current user's role from profiles (canonical mechanism used by migrations)
 create or replace function public.current_role() returns text as $$
-  select coalesce(auth.jwt() ->> 'role', 'viewer');
-$$ language sql stable;
+  select role::text from public.profiles where id = auth.uid() and is_active = true limit 1;
+$$ language sql stable security definer set search_path = public;
 
 -- profiles: users see themselves; admins see all
 create policy "profiles_self_or_admin" on public.profiles for select
@@ -526,9 +542,13 @@ create policy "po_read" on public.purchase_orders for select using (auth.role() 
 create policy "po_write" on public.purchase_orders for all
   using (public.current_role() in ('super_admin','admin','pic'));
 
--- financial tables: read broad, write restricted to admin (PIC can only insert payments via action)
+-- financial tables: read broad; INSERT via import/commit roles; UPDATE/DELETE admin only.
 create policy "invoices_read" on public.invoices for select using (auth.role() = 'authenticated');
-create policy "invoices_write_admin" on public.invoices for all
+create policy "invoices_insert_import_roles" on public.invoices for insert
+  with check (public.current_role() in ('super_admin','admin','manager'));
+create policy "invoices_update_admin" on public.invoices for update
+  using (public.current_role() in ('super_admin','admin'));
+create policy "invoices_delete_admin" on public.invoices for delete
   using (public.current_role() in ('super_admin','admin'));
 
 create policy "payments_read" on public.payments for select using (auth.role() = 'authenticated');
@@ -536,10 +556,16 @@ create policy "payments_insert_pic_or_admin" on public.payments for insert
   with check (public.current_role() in ('super_admin','admin','pic'));
 create policy "payments_update_admin" on public.payments for update
   using (public.current_role() in ('super_admin','admin'));
+create policy "payments_delete_admin" on public.payments for delete
+  using (public.current_role() in ('super_admin','admin'));
 
 create policy "cos_read_admin_manager" on public.cost_of_sales for select
   using (public.current_role() in ('super_admin','admin','manager'));
-create policy "cos_write_admin" on public.cost_of_sales for all
+create policy "cos_insert_import_roles" on public.cost_of_sales for insert
+  with check (public.current_role() in ('super_admin','admin','manager'));
+create policy "cos_update_admin" on public.cost_of_sales for update
+  using (public.current_role() in ('super_admin','admin'));
+create policy "cos_delete_admin" on public.cost_of_sales for delete
   using (public.current_role() in ('super_admin','admin'));
 
 -- training / R2

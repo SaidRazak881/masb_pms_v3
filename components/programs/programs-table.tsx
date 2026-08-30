@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { ExternalLink, Search } from 'lucide-react'
+import { Edit3, ExternalLink, Search } from 'lucide-react'
 import type { Database } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -47,7 +47,7 @@ export function ProgramsTable({ rows }: ProgramsTableProps) {
         <p className="text-xs font-medium text-slate-500">{filteredRows.length} programs</p>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full min-w-[900px] text-[13px] leading-[1.4]">
+        <table className="w-full min-w-[1000px] text-[13px] leading-[1.4]">
           <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="p-3 text-left">Program</th><th className="p-3 text-left">Company</th><th className="p-3 text-left">Stage</th>
@@ -63,7 +63,7 @@ export function ProgramsTable({ rows }: ProgramsTableProps) {
                 <td className="p-3"><StatusBadge status={stageStatus(row.current_stage)} label={row.current_stage?.replaceAll('_', ' ') ?? 'UNKNOWN'} /></td>
                 <td className="p-3 text-right tabular-nums">RM {Number(row.forecast_value ?? 0).toLocaleString('en-MY', { minimumFractionDigits: 2 })}</td>
                 <td className="p-3 text-right font-medium tabular-nums">RM {Number(row.weighted_value ?? 0).toLocaleString('en-MY', { minimumFractionDigits: 2 })}</td>
-                <td className="p-3 text-right">{row.program_code ? <Button asChild size="sm" variant="outline" className="h-8 text-xs"><Link href={`/dashboard/programs/${encodeURIComponent(row.program_code)}`}><ExternalLink className="mr-1.5 h-3.5 w-3.5" />View</Link></Button> : null}</td>
+                <td className="p-3 text-right"><div className="flex justify-end gap-2">{row.program_code ? <><Button asChild size="sm" variant="outline" className="h-8 text-xs"><Link href={`/dashboard/programs/${encodeURIComponent(row.program_code)}`}><ExternalLink className="mr-1.5 h-3.5 w-3.5" />View</Link></Button><Button asChild size="sm" variant="outline" className="h-8 text-xs"><Link href={`/dashboard/programs/${encodeURIComponent(row.program_code)}/edit`}><Edit3 className="mr-1.5 h-3.5 w-3.5" />Edit</Link></Button></> : null}</div></td>
               </tr>
             })}
           </tbody>

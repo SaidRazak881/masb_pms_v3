@@ -112,3 +112,79 @@ JANGAN UPDATE, JANGAN insert. Tugas: bandingkan dua migration-history records
 - Jika aplikasi live berjalan tanpa `supabase db push`, duplicate history
   tidak menghalang deployment.
 
+---
+
+## Prompt tambahan — Full reconciliation audit (READ-ONLY, no delete)
+
+```
+Anda masih operator Supabase untuk repo MIMOS Academy PMS
+branch `arena/01a05068-masb-pms-v3`. Operasi READ-ONLY.
+JANGAN DELETE / UPDATE / INSERT. JANGAN ubah schema, function, view, table,
+data, migration history, RLS.
+
+OBJEKTIF: peta penuh antara canonical migration set dan live
+`supabase_migrations.schema_migrations`, dan tentukan apakah kunci satu-satunya
+yang perlu dibersihkan sebelum sebarang migration automation.
+
+LANGKAH 1. Semak canonical file list (read repo):
+  0001_phase1.sql
+  0002_harden_rbac_rls.sql
+  0003_import_foundation.sql
+  0004_production_commit_engine.sql
+  0005_reconcile_schema.sql
+  0006_matching_resolution.sql
+  0008_restrict_financial_update_delete_rls.sql
+  0009_safe_commit_engine_generated_net_profit.sql
+  0010_r2_commit_engine.sql
+  0011_r3_commit_engine.sql
+  0012_r2_participant_roster_commit.sql
+  0013_r2_roster_consistency_audit.sql
+  20260829012000_seed_2026_excel_data.sql
+  20260829012100_seed_2026_excel_rows.sql
+  20260829012200_seed_2026_workbook_rows.sql
+  20260829012300_seed_2026_data_audit.sql
+
+LANGKAH 2. Query live:
+  select version, name, idempotency_key, length(statements::text) as statements_length
+  from supabase_migrations.schema_migrations
+  order by version;
+
+LANGKAH 3. Lapor dalam bentuk jadual:
+  - Canonical file -> ada / tiada dalam history (match by `name`)
+  - Remote-only records (dalam history tapi tiada canonical file) e.g. 0007
+  - Duplicate names
+  - Records yang versinya tidak sepadan dengan prefix canonical (nota: ini
+    mungkin artifact workflow dashboard/connector; jangan ubah)
+  - Out-of-order records sekiranya jelas
+
+LANGKAH 4. Untuk 0009 duplicate sahaja:
+  - Buat semantic diff (bukan hash sahaja): senaraikan klausa/statement yang
+    ada pada satu dan tiada pada yang lain.
+  - Nyatakan migration mana yang lebih lengkap dari segi SELECT columns
+    (record 42022 vs 42037) dan sama ada perbezaan ini memberi kesan output.
+  - JANGAN pilih/padam mana-mana record.
+
+LANGKAH 5. Verify (read-only):
+  - Semua 6 functions wujud & executable by authenticated:
+    commit_import_batch(uuid), commit_r2_batch(uuid),
+    commit_r2_roster(uuid), audit_r2_roster(uuid),
+    commit_r3_batch(uuid), current_user_role()
+  - `cost_of_sales.net_profit` wujud (plain column).
+  - Semua 8 tables + 4 views wujud.
+
+LANGKAH 6. Laporan:
+  - Peta penuh
+  - Risk: LOW / MED / HIGH
+  - Recommendation, contoh: "refrain from supabase db push until history is
+    reconciled", atau "tidak menyekat aplikasi hari ini".
+  - TIDAK melakukan sebarang perubahan.
+```
+
+---
+
+## Keputusan semasa (2026-08-30)
+
+- Deepen audit daripada GPT: record 0009 BERBEZA; `commit_import_batch`
+  live PASS (generated/plain `net_profit`); risk MED.
+- Langkah seterusnya: laksanakan full reconciliation audit di atas sebelum
+  sebarang migration automation. Tiada delete dilakukan.

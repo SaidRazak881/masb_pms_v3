@@ -54,17 +54,27 @@ function aggregateR2(rows: R2Row[]) {
 export default async function ExecutivePage() {
   await requireRole(['super_admin', 'admin', 'manager'])
   const supabase = await createClient()
-  const [funnelResult, r1Result, r2Result, paymentsResult, actionsResult] = await Promise.all([
-    supabase.from('vw_r3_sales_funnel').select('*'), supabase.from('vw_r1_income_statement').select('*'), supabase.from('vw_r2_overall_report').select('*'), supabase.from('payments').select('amount'), supabase.from('vw_action_required').select('*').limit(5),
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 14)
+  const [funnelResult, r1Result, r2Result, paymentsResult, actionsResult, overdueRiskResult, quotationRiskResult] = await Promise.all([
+    supabase.from('vw_r3_sales_funnel').select('*'),
+    supabase.from('vw_r1_income_statement').select('*'),
+    supabase.from('vw_r2_overall_report').select('*'),
+    supabase.from('payments').select('amount'),
+    supabase.from('vw_action_required').select('*').limit(5),
+    supabase.from('vw_action_required').select('amount,days_outstanding').eq('category', 'OVERDUE_INVOICE').gt('days_outstanding', 30),
+    supabase.from('quotations').select('final_price,quotation_date').eq('status', 'PENDING').not('quotation_date', 'is', null).lt('quotation_date', cutoff.toISOString()),
   ])
   const r3 = aggregateR3((funnelResult.data ?? []) as FunnelRow[])
   const r1 = aggregateR1((r1Result.data ?? []) as R1Row[], (paymentsResult.data ?? []) as PaymentRow[])
   const r2 = aggregateR2((r2Result.data ?? []) as R2Row[])
-  const actionItems = ((actionsResult.data ?? []) as ActionRow[]).map((row, idx) => ({ id: row.record_id ?? idx, priority: row.priority ?? 'HIGH', category: row.category ?? 'ACTION', title: row.company_name ?? row.program_code ?? 'Rekod Perlu Tindakan', detail: `${row.category ?? 'Perlu Tindakan'} · ${row.days_outstanding ?? 0} hari tunggakan`, pic: 'PIC', amount: Number(row.amount ?? 0), daysOverdue: Number(row.days_outstanding ?? 0) }))
-  const errors = [funnelResult.error, r1Result.error, r2Result.error, paymentsResult.error].filter(Boolean)
+  const actionItems = ((actionsResult.data ?? []) as ActionRow[]).map((row, idx) => ({ id: row.record_id ?? idx, priority: row.priority ?? 'HIGH', category: row.category ?? 'ACTION', title: row.company_name ?? row.program_code ?? 'Rekod Perlu Tindakan', detail: `${row.category ?? 'Perlu Tindakan'} · ${row.days_outstanding ?? 0} hari tunggakan`, pic: row.pic ?? '—', amount: Number(row.amount ?? 0), daysOverdue: Number(row.days_outstanding ?? 0) }))
+  const leakageOverdue = ((overdueRiskResult.data ?? []) as Array<{ amount: number | null }>).reduce((sum, row) => sum + Number(row.amount ?? 0), 0)
+  const leakageQuotation = ((quotationRiskResult.data ?? []) as Array<{ final_price: number | null }>).reduce((sum, row) => sum + Number(row.final_price ?? 0), 0)
+  const errors = [funnelResult.error, r1Result.error, r2Result.error, paymentsResult.error, actionsResult.error, overdueRiskResult.error, quotationRiskResult.error].filter(Boolean)
   return <div className="space-y-6 p-4 sm:p-6 lg:p-8">
     {errors.length > 0 && <Card className="border-amber-200 bg-amber-50/50"><CardContent className="p-4"><p className="text-xs font-semibold text-amber-800">Sebahagian data realtime tidak dapat dimuatkan secara penuh. Sila semak sambungan pangkalan data Supabase.</p></CardContent></Card>}
     <ExecutiveBentoDashboard r3={r3} r1={r1} r2={r2} actionItems={actionItems} />
-    <ExecutiveImpactWidgets forecast={r3.forecast} secured={r3.secured} invoiced={r1.invoiced} collected={r1.collected} outstanding={r1.outstanding} overdueCount={r1.overdueCount} bumi={r2.b} nonBumi={r2.nb} />
+    <ExecutiveImpactWidgets forecast={r3.forecast} secured={r3.secured} invoiced={r1.invoiced} collected={r1.collected} leakageOverdue={leakageOverdue} leakageQuotation={leakageQuotation} overdueCount={r1.overdueCount} bumi={r2.b} nonBumi={r2.nb} />
   </div>
 }

@@ -1,6 +1,6 @@
 # Prompts for the GPT assistant (Supabase + Vercel access)
 
-Code-side work happens in this repo (Arena agent, branch `arena/01a04f1d-masb-pms-v3`).
+Code-side work happens in this repo (Arena agent, current branch `arena/01a05057-masb-pms-v3`).
 GPT handles the things that need live Supabase/Vercel access. Copy-paste one prompt
 per task, in order. Paste GPT's "REPORT" blocks back into the Arena chat so the code
 side can react.
@@ -185,6 +185,52 @@ REPORT:
 - admin profile row (id masked, role, is_active)
 - each acceptance item: PASS/FAIL + evidence (status code or screenshot description)
 - anything that failed, with exact error text
+```
+
+---
+
+## Prompt 4 — Supabase: apply the commit-target-resolution fix (migration 0007)
+
+```
+TASK: Fix the "Import-to-Commit pipeline gap" on Supabase production.
+
+CONTEXT (from the code-side agent): `commit_import_batch` used to select staging
+rows with `target_record_id is not null`, but nothing ever populated
+`target_table`/`target_record_id` before commit, so every import commit was a
+silent no-op (affected_records = 0). The code side has now:
+- added POST /api/import/batches/[batchId]/match (runs matching + resolves
+  target_table + sets batch to READY), and
+- shipped migration 0007_fix_commit_target_resolution.sql, which replaces
+  commit_import_batch so it (a) derives target_table from source_type when NULL
+  and (b) no longer requires target_record_id pre-commit (the RPC INSERTs the
+  record and back-fills target_record_id).
+
+YOUR TASK:
+1. Connect to the Supabase production project ref knzawodadepabxjpxkly.
+   Confirm the current definition of commit_import_batch:
+     select pg_get_functiondef('public.commit_import_batch(uuid)'::regprocedure);
+2. Apply supabase/migrations/0007_fix_commit_target_resolution.sql from the repo
+   branch `arena/01a05057-masb-pms-v3` (or main, whichever is current). It is a
+   single CREATE OR REPLACE FUNCTION + GRANT; idempotent and safe to re-run.
+3. VERIFY the new definition no longer contains `target_record_id is not null`
+   in its SELECT/WHERE and does contain the source_type->target_table CASE.
+   Re-run query #1 and confirm.
+4. Do a SAFE, read-only sanity check (no deletes, no truncates):
+   - select matching_status, count(*) from public.import_staging group by 1 order by 1;
+   - select status, count(*) from public.import_batches group by 1 order by 1;
+   - count rows eligible to commit:
+       select count(*) from public.import_staging
+       where validation_status='VALID'
+         and matching_status in ('EXACT','ALIAS','COMPOSITE','FUZZY_REVIEW')
+         and (target_table in ('quotations','invoices','cost_of_sales')
+              or source_type in ('quotation_tracker','invoice_2026','cost_of_sales_2026'));
+
+REPORT:
+- project ref (masked) + whether migration 0007 already applied or was newly applied
+- old vs new commit_import_batch definition status (before/after)
+- the verification query outputs
+- the read-only status/matching counts
+- confirmation that commit_import_batch now accepts rows with target_record_id IS NULL
 ```
 
 ---

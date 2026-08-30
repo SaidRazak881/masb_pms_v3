@@ -1,3 +1,8 @@
-import {requireUser} from '@/lib/auth'
-import {SignOutButton} from '@/components/sign-out'
-export default async function Layout({children}:{children:React.ReactNode}){const {user,role}=await requireUser();return <div className='min-h-screen bg-slate-50'><aside className='fixed inset-y-0 left-0 hidden w-64 border-r bg-white p-5 lg:block'><div className='mb-8 text-xl font-bold'>MIMOS Academy</div><nav className='space-y-1 text-sm'>{[['/dashboard','Dashboard'],['/dashboard/executive','Executive'],['/dashboard/reports','Reports'],['/dashboard/action-center','Action Center'],['/dashboard/programs','Program 360'],['/dashboard/r1','R1 · Income'],['/dashboard/r2','R2 · Training'],['/dashboard/imports','Import & DQ'],['/dashboard/settings','Settings']].map(([href,label])=><a href={href} key={href} className='block rounded-lg px-3 py-2 hover:bg-slate-100'>{label}</a>)}</nav><div className='absolute bottom-5 left-5 right-5'><div className='mb-3 text-xs text-slate-500'>{user.email}<br/>{role}</div><SignOutButton/></div></aside><main className='lg:pl-64'><header className='border-b bg-white px-6 py-4 font-semibold'>Sistem Pengurusan R1 / R2 / R3</header>{children}</main></div>}
+import { requireUser } from '@/lib/auth'
+import { EnterpriseSidebar } from '@/components/layout/sidebar'
+import { EnterpriseTopbar } from '@/components/layout/topbar'
+
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const { user, role } = await requireUser()
+  return <div className="min-h-screen bg-slate-50"><EnterpriseSidebar role={role} email={user.email} /><main className="min-h-screen lg:pl-72"><EnterpriseTopbar />{children}</main></div>
+}

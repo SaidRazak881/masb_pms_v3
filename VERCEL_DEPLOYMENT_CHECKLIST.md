@@ -33,7 +33,9 @@
 - [ ] `/login` loads (200).
 - [ ] `/dashboard` redirects to `/login` when unauthenticated.
 - [ ] `/dashboard/r1`, `/dashboard/r2`, `/dashboard/reports`, `/dashboard/imports`, `/dashboard/settings` load after login (settings is admin-only).
-- [ ] Unauthenticated API requests to `/api/import/*` return 401/405 JSON.
+- [ ] Unauthenticated API requests to `/api/*` return 401 JSON (including `/api/reports/export` and `/api/settings/*`).
+- [ ] `/api/reports/export?type=r1|r2|r3` downloads a CSV for manager+ roles.
+- [ ] `/api/settings/*` is admin-only and rejects `pic`/`viewer` with 403 JSON.
 - [ ] `npm run typecheck` and `npm run build` pass in CI.
 
 ## After first admin

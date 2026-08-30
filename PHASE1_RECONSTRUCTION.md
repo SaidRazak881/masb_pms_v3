@@ -114,7 +114,8 @@ Nota:
 
 12. **Skrin R1 & R2**
     - `/dashboard/r1` membaca `vw_r1_income_statement`.
-    - `/dashboard/r2` membaca `vw_r2_overall_report`.
+    - `/dashboard/r2` membaca `vw_r2_overall_report` dan `participant_roster`
+      (certified + attendance Week 1/Week 2).
     - Navigasi sidebar dikemas kini.
 
 13. **Executive Dashboard**

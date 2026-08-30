@@ -1,0 +1,28 @@
+name: Verification Check
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Membolehkan anda klik button 'Run workflow' secara manual
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # atau versi node yang anda guna
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Build
+        run: npm run build

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Edit3, Save, X } from 'lucide-react'
 import { updateEditableRecord } from '@/lib/actions/records'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ type Field = {
   placeholder?: string
   options?: Array<{ value: string; label: string }>
   step?: string
+  required?: boolean
 }
 
 export function RecordEditDialog({
@@ -35,6 +37,7 @@ export function RecordEditDialog({
   fields: Field[]
   onSaved?: () => void
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<Record<string, unknown>>(values)
   const [error, setError] = useState<string | null>(null)
@@ -57,10 +60,25 @@ export function RecordEditDialog({
     setOpen(false)
   }
 
+  function closeEditor() {
+    if (dirty && !window.confirm('You have unsaved changes. Discard them?')) return
+    discard()
+  }
+
   function save() {
     setError(null)
+    const requiredMissing = fields.find((field) => field.required && String(draft[field.key] ?? '').trim() === '')
+    if (requiredMissing) {
+      setError(`${requiredMissing.label} is required.`)
+      return
+    }
+
     startTransition(async () => {
-      const changes = Object.fromEntries(fields.filter((field) => String(draft[field.key] ?? '') !== String(values[field.key] ?? '')).map((field) => [field.key, draft[field.key] ?? null]))
+      const changes = Object.fromEntries(
+        fields
+          .filter((field) => String(draft[field.key] ?? '') !== String(values[field.key] ?? ''))
+          .map((field) => [field.key, draft[field.key] ?? null]),
+      )
       const result = await updateEditableRecord({ table, id, changes })
       if (!result.ok) {
         setError(result.error)
@@ -68,6 +86,7 @@ export function RecordEditDialog({
       }
       setOpen(false)
       onSaved?.()
+      router.refresh()
     })
   }
 
@@ -78,8 +97,8 @@ export function RecordEditDialog({
     {open ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-label={`Edit ${title}`}>
       <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <div><p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Edit record</p><h2 className="mt-0.5 text-lg font-semibold text-slate-900">{title}</h2></div>
-          <button type="button" onClick={discard} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close"><X className="h-5 w-5" /></button>
+          <div><p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Edit Record</p><h2 className="mt-0.5 text-lg font-semibold text-slate-900">{title}</h2></div>
+          <button type="button" onClick={closeEditor} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close editor"><X className="h-5 w-5" /></button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto p-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -87,7 +106,7 @@ export function RecordEditDialog({
               const value = draft[field.key]
               if (field.type === 'checkbox') return <label key={field.key} className="flex items-center gap-2 rounded-lg border border-slate-200 p-3 sm:col-span-2"><input type="checkbox" checked={Boolean(value)} onChange={(event) => setValue(field.key, event.target.checked)} className="h-4 w-4" /><span className="text-sm font-medium text-slate-700">{field.label}</span></label>
               return <div key={field.key} className={cn(field.type === 'text' && field.key === 'title' ? 'sm:col-span-2' : '')}>
-                <Label className="mb-1.5 block text-xs font-semibold text-slate-600">{field.label}</Label>
+                <Label className="mb-1.5 block text-xs font-semibold text-slate-600">{field.label}{field.required ? ' *' : ''}</Label>
                 {field.type === 'select' ? <select value={String(value ?? '')} onChange={(event) => setValue(field.key, event.target.value || null)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <Input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'} step={field.step} value={value == null ? '' : String(value)} onChange={(event) => setValue(field.key, field.type === 'number' ? (event.target.value === '' ? null : Number(event.target.value)) : event.target.value)} placeholder={field.placeholder} />}
               </div>
             })}

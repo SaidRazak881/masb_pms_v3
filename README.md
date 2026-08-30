@@ -47,8 +47,8 @@ npm run build      # production build
 - `/login`
 - `/dashboard`
 - `/dashboard/action-center`
-- `/dashboard/programs`
-- `/dashboard/programs/[code]`
+- `/dashboard/programs` — R3 sales funnel list
+- `/dashboard/programs/[code]` — full Program 360 lifecycle (pipeline history, quotations, PO, invoices/payments, training sessions & roster)
 - `/dashboard/r1` — R1 Income Statement (`vw_r1_income_statement`)
 - `/dashboard/r2` — R2 Overall Report (`vw_r2_overall_report`) + Participant Roster / Attendance (`participant_roster`)
 - `/dashboard/reports` — consolidated R1/R2/R3 report pages with CSV export

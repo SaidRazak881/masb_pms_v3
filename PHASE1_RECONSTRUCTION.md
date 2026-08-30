@@ -175,6 +175,11 @@ Nota:
       content-disposition untuk kegunaan luar/reporting.
     - Pautan **Reports** ditambah ke sidebar.
 
+17. **Program 360 detail**
+    - `/dashboard/programs/[code]` — paparan penuh lifecycle: summary kewangan,
+      pipeline history, quotations, purchase orders, invoices/payments, dan
+      training sessions + participant roster.
+
 ---
 
 ## 5. Perkara yang masih perlu diikuti (bukan blocker repo)

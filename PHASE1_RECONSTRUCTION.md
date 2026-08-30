@@ -138,13 +138,29 @@ Nota:
 
 ---
 
+14. **R3 / Sales Pipeline**
+    - `lib/imports/r3-funnel-parser.ts`, `office-funnel-parser.ts`,
+      `sales-report-parser.ts` — parse R3 funnel, office funnel, dan sales report.
+    - `lib/imports/r3-import.ts` + `app/api/import/r3/route.ts` — stage semua
+      tiga sumber.
+    - `supabase/migrations/0011_r3_commit_engine.sql` + `commit_r3_batch()`;
+      `app/api/import/r3/commit` — commit companies → programs →
+      pipeline_stage_history, dengan sales-report cross-check.
+    - Import Center menyokong upload 3 fail R3 (R3 / Office / Sales) dan
+      butang **Commit R3**.
+
+15. **Data Quality actions UI** — masih belum dibangun; exceptions dipaparkan
+    dalam Import Center tetapi belum ada butang resolve/ignore dari UI.
+
+---
+
 ## 5. Perkara yang masih perlu diikuti (bukan blocker repo)
 
 - `participant_roster` masih hanya di-*stage* (attendance list belum dipetakan
   secara deterministik ke sesi); commit participant roster memerlukan mapping
   yang lebih jelas daripada source workbook.
-- Skrin UI Executive, Reports, Data Quality/Import Center, Settings masih belum
+- Skrin UI Reports, Settings, dan Data Quality resolve/ignore masih belum
   dibangunkan.
 - Setelah ada environment sebenar (jika ada), jalankan migrations mengikut
-  urutan di atas, kemudian import `cost_of_sales_2026.xlsx` dan
-  `R2 Overall Report 2026 (1).xlsx`.
+  urutan di atas, kemudian import `cost_of_sales_2026.xlsx`,
+  `R2 Overall Report 2026 (1).xlsx`, dan R3 / sales pipeline workbooks.

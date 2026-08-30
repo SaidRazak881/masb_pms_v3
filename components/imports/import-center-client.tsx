@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import type { Database } from '@/types/database'
 
 type Batch = Database['public']['Tables']['import_batches']['Row']
-type ImportKind = 'quotations' | 'invoices' | 'cost-of-sales' | 'r2'
+type ImportKind = 'quotations' | 'invoices' | 'cost-of-sales' | 'r2' | 'r3'
 
 const KINDS: Array<{ key: ImportKind; label: string; description: string }> = [
   { key: 'quotations', label: 'Quotation Tracker', description: 'POST /api/import/quotations' },
   { key: 'invoices', label: 'Invoice 2026', description: 'POST /api/import/invoices' },
   { key: 'cost-of-sales', label: 'Cost of Sales', description: 'POST /api/import/cost-of-sales' },
   { key: 'r2', label: 'R2 Overall Report', description: 'POST /api/import/r2' },
+  { key: 'r3', label: 'R3 / Sales Pipeline', description: 'POST /api/import/r3' },
 ]
 
 const statusClass = (status: string | null) => {
@@ -44,18 +45,28 @@ async function postJson(url: string, body: Record<string, unknown> = {}): Promis
 export function ImportCenterClient({ batches: initialBatches }: { batches: Batch[] }) {
   const [batches, setBatches] = useState<Batch[]>(initialBatches)
   const [file, setFile] = useState<File | null>(null)
+  const [r3File, setR3File] = useState<File | null>(null)
+  const [officeFile, setOfficeFile] = useState<File | null>(null)
+  const [salesFile, setSalesFile] = useState<File | null>(null)
   const [kind, setKind] = useState<ImportKind>('r2')
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [busyBatchId, setBusyBatchId] = useState<string | null>(null)
 
   async function upload() {
-    if (!file) { setMessage('Pilih fail terlebih dahulu.'); return }
+    if (kind === 'r3' && !r3File && !officeFile && !salesFile) { setMessage('Pilih sekurang-kurangnya satu fail R3 / office / sales.'); return }
+    if (kind !== 'r3' && !file) { setMessage('Pilih fail terlebih dahulu.'); return }
     setUploading(true)
     setMessage(null)
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      if (kind === 'r3') {
+        if (r3File) formData.append('r3', r3File)
+        if (officeFile) formData.append('office', officeFile)
+        if (salesFile) formData.append('sales', salesFile)
+      } else {
+        if (file) formData.append('file', file)
+      }
       const response = await fetch(`/api/import/${kind}`, { method: 'POST', body: formData })
       const payload = await response.json().catch(() => null)
       if (!response.ok) { setMessage(`Import gagal (${response.status}): ${payload?.error ?? 'unknown'}`); return }
@@ -66,7 +77,7 @@ export function ImportCenterClient({ batches: initialBatches }: { batches: Batch
     } finally { setUploading(false) }
   }
 
-  async function runBatchAction(batchId: string, action: 'match-engine' | 'match' | 'commit' | 'r2-commit') {
+  async function runBatchAction(batchId: string, action: 'match-engine' | 'match' | 'commit' | 'r2-commit' | 'r3-commit') {
     setBusyBatchId(batchId)
     setMessage(null)
     try {
@@ -79,6 +90,8 @@ export function ImportCenterClient({ batches: initialBatches }: { batches: Batch
         if (result.ok) setMessage(`Resolution selesai: resolved=${(result.data as { resolved?: number } | undefined)?.resolved ?? '—'}`)
       } else if (action === 'r2-commit') {
         result = await postJson('/api/import/r2/commit', { batch_id: batchId })
+      } else if (action === 'r3-commit') {
+        result = await postJson('/api/import/r3/commit', { batch_id: batchId })
       } else {
         result = await postJson('/api/import/commit', { batch_id: batchId })
       }
@@ -108,16 +121,33 @@ export function ImportCenterClient({ batches: initialBatches }: { batches: Batch
               </button>
             ))}
           </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              className="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm"
-            />
-            <Button type="button" onClick={upload} disabled={uploading || !file}>
-              {uploading ? 'Importing…' : 'Import'}
-            </Button>
+          <div className="mt-4 flex flex-col gap-3">
+            {kind === 'r3' ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="text-xs text-slate-500">R3 Funnel
+                  <input type="file" accept=".xlsx,.xls" onChange={(event) => setR3File(event.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm" />
+                </label>
+                <label className="text-xs text-slate-500">Office Funnel
+                  <input type="file" accept=".xlsx,.xls" onChange={(event) => setOfficeFile(event.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm" />
+                </label>
+                <label className="text-xs text-slate-500">Sales Report
+                  <input type="file" accept=".xlsx,.xls" onChange={(event) => setSalesFile(event.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm" />
+                </label>
+              </div>
+            ) : (
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                className="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm"
+              />
+            )}
+            <div className="flex items-center gap-3">
+              <Button type="button" onClick={upload} disabled={uploading || (kind === 'r3' ? (!r3File && !officeFile && !salesFile) : !file)}>
+                {uploading ? 'Importing…' : 'Import'}
+              </Button>
+              <span className="text-xs text-slate-500">Batch akan di-*stage* dahulu, kemudian di-commit.</span>
+            </div>
           </div>
           {message ? <p className="mt-3 text-sm text-slate-700">{message}</p> : null}
         </CardContent>
@@ -139,7 +169,9 @@ export function ImportCenterClient({ batches: initialBatches }: { batches: Batch
                   <Button size="sm" variant="outline" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'match')}>Resolve</Button>
                   {batch.source_type === 'r2_overall_report'
                     ? <Button size="sm" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'r2-commit')}>Commit R2</Button>
-                    : <Button size="sm" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'commit')}>Commit</Button>}
+                    : batch.source_type === 'r3_sales_pipeline'
+                      ? <Button size="sm" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'r3-commit')}>Commit R3</Button>
+                      : <Button size="sm" disabled={busyBatchId === batch.id} onClick={() => runBatchAction(batch.id, 'commit')}>Commit</Button>}
                 </div>
               </div>
             ))}

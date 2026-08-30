@@ -53,15 +53,10 @@ export function SettingsClient({
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  // Profile editor state
   const [selectedRoles, setSelectedRoles] = useState<Record<string, Profile['role']>>({})
   const [selectedActive, setSelectedActive] = useState<Record<string, boolean>>({})
-
-  // Alias form state
   const [aliasCompanyId, setAliasCompanyId] = useState('')
   const [aliasText, setAliasText] = useState('')
-
-  // Status form state
   const [statusSource, setStatusSource] = useState('')
   const [statusEntity, setStatusEntity] = useState('')
   const [statusRaw, setStatusRaw] = useState('')
@@ -146,32 +141,26 @@ export function SettingsClient({
       <Card>
         <CardHeader><CardTitle className="text-base">Users &amp; Roles</CardTitle></CardHeader>
         <CardContent className="p-4 sm:p-6">
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr><th className="p-3 text-left">Name</th><th className="p-3 text-left">Email</th><th className="p-3 text-left">Role</th><th className="p-3 text-left">Active</th><th className="p-3 text-right">Action</th></tr>
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full min-w-[900px] text-[13px] leading-[1.4]">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <tr><th className="border-b border-slate-200 p-3 text-left">Name</th><th className="border-b border-slate-200 p-3 text-left">Email</th><th className="border-b border-slate-200 p-3 text-left">Role</th><th className="border-b border-slate-200 p-3 text-left">Active</th><th className="border-b border-slate-200 p-3 text-right">Action</th></tr>
               </thead>
               <tbody>
-                {profiles.map((profile) => {
+                {profiles.map((profile, index) => {
                   const role = selectedRoles[profile.id] ?? profile.role
                   const isActive = selectedActive[profile.id] ?? profile.is_active
                   return (
-                    <tr key={profile.id} className="border-t transition-colors hover:bg-slate-50">
+                    <tr key={profile.id} className={`border-b border-slate-100 transition-colors hover:bg-slate-50 ${index % 2 ? 'bg-slate-50/40' : 'bg-white'}`}>
                       <td className="max-w-[240px] truncate p-3 font-medium">{profile.full_name}</td>
                       <td className="max-w-[240px] truncate p-3 text-slate-600">{profile.email}</td>
                       <td className="p-3">
-                        <select value={role} onChange={(event) => setSelectedRoles((rows) => ({ ...rows, [profile.id]: event.target.value as Profile['role'] }))} className="h-9 rounded-md border bg-white px-2 text-sm">
+                        <select value={role} onChange={(event) => setSelectedRoles((rows) => ({ ...rows, [profile.id]: event.target.value as Profile['role'] }))} className="h-9 rounded-md border border-slate-200 bg-white px-2 text-[13px]">
                           {ROLES.map((value) => <option key={value} value={value}>{value}</option>)}
                         </select>
                       </td>
-                      <td className="p-3">
-                        <input type="checkbox" checked={isActive} onChange={(event) => setSelectedActive((rows) => ({ ...rows, [profile.id]: event.target.checked }))} className="h-4 w-4" />
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="outline" disabled={busy === `profile-${profile.id}`} onClick={() => saveProfile(profile)}>
-                          {busy === `profile-${profile.id}` ? 'Saving...' : 'Save'}
-                        </Button>
-                      </td>
+                      <td className="p-3"><input type="checkbox" checked={isActive} onChange={(event) => setSelectedActive((rows) => ({ ...rows, [profile.id]: event.target.checked }))} className="h-4 w-4" /></td>
+                      <td className="p-3 text-right"><Button size="sm" variant="outline" disabled={busy === `profile-${profile.id}`} onClick={() => saveProfile(profile)}>{busy === `profile-${profile.id}` ? 'Saving...' : 'Save'}</Button></td>
                     </tr>
                   )
                 })}
@@ -188,34 +177,13 @@ export function SettingsClient({
           <CardHeader><CardTitle className="text-base">Company Aliases</CardTitle></CardHeader>
           <CardContent className="p-4 sm:p-6">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <Label className="mb-1 block text-xs text-slate-500" htmlFor="alias-company">Company</Label>
-                <select id="alias-company" value={aliasCompanyId} onChange={(event) => setAliasCompanyId(event.target.value)} className="h-10 w-full rounded-md border bg-white px-3 text-sm">
-                  <option value="">Pilih syarikat...</option>
-                  {initialCompanies.map((company) => <option key={company.id} value={company.id}>{company.canonical_name}</option>)}
-                </select>
-              </div>
-              <div className="flex-1">
-                <Label className="mb-1 block text-xs text-slate-500" htmlFor="alias-text">Alias</Label>
-                <Input id="alias-text" value={aliasText} onChange={(event) => setAliasText(event.target.value)} placeholder="e.g. MIMOS Solutions SB" />
-              </div>
+              <div className="flex-1"><Label className="mb-1 block text-xs text-slate-500" htmlFor="alias-company">Company</Label><select id="alias-company" value={aliasCompanyId} onChange={(event) => setAliasCompanyId(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px]"><option value="">Pilih syarikat...</option>{initialCompanies.map((company) => <option key={company.id} value={company.id}>{company.canonical_name}</option>)}</select></div>
+              <div className="flex-1"><Label className="mb-1 block text-xs text-slate-500" htmlFor="alias-text">Alias</Label><Input id="alias-text" value={aliasText} onChange={(event) => setAliasText(event.target.value)} placeholder="e.g. MIMOS Solutions SB" /></div>
               <Button type="button" disabled={busy === 'alias'} onClick={addAlias}>Add</Button>
             </div>
-
             {initialCompanies.map((company) => {
               const rows = aliasesByCompany.get(company.id) ?? []
-              return (
-                <div key={company.id} className="border-t py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{company.canonical_name}</span>
-                    <Badge>{rows.length} alias</Badge>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {rows.map((alias) => <Badge key={alias.id} className="border-slate-200 bg-slate-50 text-slate-600">{alias.alias_text}</Badge>)}
-                    {rows.length === 0 ? <span className="text-xs text-slate-400">Tiada alias.</span> : null}
-                  </div>
-                </div>
-              )
+              return <div key={company.id} className="border-t border-slate-200 py-3"><div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">{company.canonical_name}</span><Badge>{rows.length} alias</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{rows.map((alias) => <Badge key={alias.id} className="border-slate-200 bg-slate-50 text-slate-600">{alias.alias_text}</Badge>)}{rows.length === 0 ? <span className="text-xs text-slate-400">Tiada alias.</span> : null}</div></div>
             })}
           </CardContent>
         </Card>
@@ -230,21 +198,13 @@ export function SettingsClient({
               <div><Label className="mb-1 block text-xs text-slate-500">Canonical Value</Label><Input value={statusCanonical} onChange={(event) => setStatusCanonical(event.target.value)} placeholder="e.g. PO_RECEIVED" /></div>
             </div>
             <Button type="button" className="mt-3" disabled={busy === 'status'} onClick={addStatus}>Save Mapping</Button>
-
-            <div className="mt-5 max-h-[440px] overflow-auto rounded-lg border">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr><th className="p-3 text-left">Source</th><th className="p-3 text-left">Entity</th><th className="p-3 text-left">Raw</th><th className="p-3 text-left">Canonical</th></tr>
+            <div className="mt-5 max-h-[440px] overflow-auto rounded-lg border border-slate-200">
+              <table className="w-full min-w-[640px] text-[13px] leading-[1.4]">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <tr><th className="border-b border-slate-200 p-3 text-left">Source</th><th className="border-b border-slate-200 p-3 text-left">Entity</th><th className="border-b border-slate-200 p-3 text-left">Raw</th><th className="border-b border-slate-200 p-3 text-left">Canonical</th></tr>
                 </thead>
                 <tbody>
-                  {statuses.map((row) => (
-                    <tr key={row.id} className="border-t transition-colors hover:bg-slate-50">
-                      <td className="p-3">{row.source_system}</td>
-                      <td className="p-3">{row.entity_type}</td>
-                      <td className="p-3">{row.raw_value}</td>
-                      <td className="p-3"><Badge>{row.canonical_value}</Badge></td>
-                    </tr>
-                  ))}
+                  {statuses.map((row, index) => <tr key={row.id} className={`border-b border-slate-100 transition-colors hover:bg-slate-50 ${index % 2 ? 'bg-slate-50/40' : 'bg-white'}`}><td className="p-3">{row.source_system}</td><td className="p-3">{row.entity_type}</td><td className="p-3">{row.raw_value}</td><td className="p-3"><Badge>{row.canonical_value}</Badge></td></tr>)}
                 </tbody>
               </table>
             </div>

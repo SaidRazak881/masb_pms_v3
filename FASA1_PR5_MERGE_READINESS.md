@@ -1,5 +1,16 @@
 # Fasa 1 — Post-GPT Action Plan & PR #5 Merge-Readiness Matrix
 
+> **Update 2026-08-30 (initial GPT feedback):**
+> - Branch `arena/01a05068-masb-pms-v3` has been **pushed to origin** so GPT/other
+>   agents can read `supabase/migrations/0008_restrict_financial_update_delete_rls.sql`.
+> - Added **`0009_safe_commit_engine_generated_net_profit.sql`** as the safe
+>   replacement for PR-#5 draft `0007`. It contains **no DROP COLUMN / DROP TABLE /
+>   TRUNCATE**, and lets `commit_import_batch()` work with both the live shape
+>   (`net_profit` plain numeric) and the `02-schema.sql` shape (`net_profit`
+>   generated).
+> - Live `import_staging.matching_confidence` and `matching_rule` are confirmed
+>   **PRESENT**, so migration `0006` is **not required** on the live project.
+
 **Sorotan audit live (2026-08-30):**
 - Project: `knzawodadepabxjpxkly` / ap-northeast-2 / Postgres 17.6.1
 - Production: `https://masb-pms-v3.vercel.app` @ `main` `636d369`
@@ -9,7 +20,7 @@
 
 ## A. Apa yang perlu dibetulkan dahulu (ranked)
 
-### 1. 🔴 RLS kewangan — DALAM KERJA (migration 0008 disediakan)
+### 1. 🔴 RLS kewangan — DALAM KERJA (migration 0008 disediakan & pushed)
 Disahkan live:
 ```
 invoice_update       -> current_user_role() in ('super_admin','admin','manager','pic')
@@ -66,7 +77,8 @@ Live hanya 5/13 enums dan tiada `current_role()` (mekanisme aktif = `current_use
 |---|---|---|---|---|
 | `0005_reconcile_schema.sql` | Jadual/views R1,R2 | live sudah ada semua jadual + views (untuk DP yang sudah apply). Migration idempotent. | ✅ Selamat (idempotent) | Akan no-op pada live; selamat untuk fresh DB. |
 | `0006_matching_resolution.sql` | `matching_confidence`, `matching_rule`, index | Perlu sebelum `resolveMatchingTargets()`. GPT belum confirm kolum ini wujud live. | ⚠️ **Wajib sebelum merge/preview** | `matching-resolution-service.ts` menulis kedua-dua kolum. |
-| `0007_align_cost_of_sales_with_commit_engine.sql` | `cost_of_sales` plain `net_profit` | Live sudah plain numeric, sudah ada `invoice_no/invoice_value/collection/profit_percentage`. | ✅ Selamat (idempotent) | No-op pada live; diperlukan untuk fresh DB berbasis `02-schema.sql`. |
+| `0007_align_cost_of_sales_with_commit_engine.sql` | `cost_of_sales` plain `net_profit` | Live sudah plain numeric, sudah ada `invoice_no/invoice_value/collection/profit_percentage`. | ⚠️ BLOCKED | Mengandungi `DROP COLUMN net_profit` → jangan apply. Guna `0009` sebagai ganti. |
+| `supabase/migrations/0009_safe_commit_engine_generated_net_profit.sql` | Commit engine | Live sudah plain `net_profit` (no-op); fresh DB generated `net_profit` disokong. | ✅ Safe | Tiada DROP; `create or replace function` + `add column if not exists`. |
 | `app/api/import/[batchId]/match-engine/route.ts` | POST `/match-engine` | Hanya perlu `import_staging`, `profiles`. | ✅ | Boleh deploy selepas 0006. |
 | `app/api/import/[batchId]/match/route.ts` | POST `/match` | Perlu `matching_confidence`, `matching_rule` (0006). | ✅ selepas 0006 | Menetapkan `target_table`/`target_record_id`. |
 | `lib/imports/matching-engine.ts` | matching + persist | `import_staging.matching_status` enum (`EXACT/ALIAS/COMPOSITE/AMBIGUOUS/NONE`). | ✅ | PR sudah selaraskan ke enum; bug `DUPLICATE` diselesaikan via metadata `duplicate=true`. |
@@ -79,7 +91,7 @@ Live hanya 5/13 enums dan tiada `current_role()` (mekanisme aktif = `current_use
 
 ## C. Conflict & nota merge
 
-1. **Punca conflict paling mungkin:** PR #5 branch berasaskan versi lama `types/database.ts`, `next-env.d.ts`, `package-lock.json`, dan `lib/imports/*`. 
+1. **Punca conflict paling mungkin:** PR #5 branch berasaskan versi lama `types/database.ts`, `next-env.d.ts`, `package-lock.json`, dan `lib/imports/*`. Branch `arena/01a05068-masb-pms-v3` di-push supaya GPT/agent boleh **mengambil `0008` dan `0009`** dari fail repo sahaja (tanpa meneka kandungan). 
 2. **Cara resolve:** rebase/replay PR #5 ke `main` terkini (`636d369`). Jika perlu, regenerate:
    ```bash
    rm -f package-lock.json && npm install
@@ -97,7 +109,9 @@ Live hanya 5/13 enums dan tiada `current_role()` (mekanisme aktif = `current_use
 1. Backup Supabase (PITR/pg_dump).                        [GPT]
 2. Apply migration 0008 (RLS financial).                  [GPT]
 3. Merge PR #5 ke main (rebase + conflict fix).           [GPT]
-4. Apply 0005 -> 0006 -> 0007 -> 0008 pada target DB.     [GPT]
+4. Apply 0005 -> 0008 -> 0009 pada target DB.             [GPT]
+   JANGAN apply 0007 (subject to DROP COLUMN). 0006 tidak
+   perlu di live (kolum sudah wujud).                     [GPT]
 5. Re-deploy Vercel production branch = main.             [GPT]
 6. Smoke test /api/import/* + 0008 RLS policy query.      [GPT]
 7. Import cost_of_sales_2026.xlsx via POST
@@ -114,23 +128,27 @@ Live hanya 5/13 enums dan tiada `current_role()` (mekanisme aktif = `current_use
 
 ```
 TASK (read-only first, then only after you confirm backup):
-1. Run ALTER/CREATE from repo migration 0008 to restrict invoices/payments/
-   cost_of_sales UPDATE/DELETE to super_admin/admin. After applying, re-run
-   the pg_policies query and paste the result.
-2. Check whether live import_staging has columns matching_confidence and
-   matching_rule. If missing, apply migration 0006 (00_additive). Paste
-   information_schema.columns result.
-3. Rebase PR #5 (head 0e3207a) onto main 636d369, resolve conflicts only in
+1. Read branch arena/01a05068-masb-pms-v3 from origin:
+   - supabase/migrations/0008_restrict_financial_update_delete_rls.sql
+   - supabase/migrations/0009_safe_commit_engine_generated_net_profit.sql
+   - FASA1_PR5_MERGE_READINESS.md
+2. Apply migration 0008 to restrict invoices/payments/cost_of_sales
+   UPDATE/DELETE to super_admin/admin. Do NOT apply PR-#5 0007. After
+   applying, re-run the pg_policies query and paste the result.
+3. Confirm import_staging already has matching_confidence and matching_rule
+   (GPT already reported PRESENT) — migration 0006 is therefore not needed.
+   If a fresh target DB is used, apply 0005 + 0009 instead of 0006/0007.
+4. Rebase PR #5 (head 0e3207a) onto main 636d369, resolve conflicts only in
    package-lock.json / next-env.d.ts / types/database.ts / lib/imports/*, do
    NOT touch business logic unless a conflict forces it. Paste the list of
    files you changed and the final mergeable status.
-4. In a backup/staging context, test the sequence for one cost_of_sales row:
+5. In a backup/staging context, test the sequence for one cost_of_sales row:
    POST /api/import/{id}/match-engine -> POST /api/import/{id}/match ->
    POST /api/import/commit. Paste statuses and any error text.
 
 REPORT:
-- migrations applied (0006/0007/0008) + policy verification
-- import_staging new columns present yes/no
+- migrations applied (0008/0009; 0007 skipped; 0006 not needed) + policy verification
+- import_staging matching_confidence/matching_rule present yes/no
 - PR #5 merge/rebase result + conflict files resolved
 - end-to-end import test result (PASS/FAIL + exact error)
 - remaining blockers

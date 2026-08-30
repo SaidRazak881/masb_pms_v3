@@ -32,6 +32,8 @@
 0008_restrict_financial_update_delete_rls.sql
 0009_safe_commit_engine_generated_net_profit.sql
 0010_r2_commit_engine.sql
+0011_r3_commit_engine.sql
+0012_r2_participant_roster_commit.sql
 20260829012000_seed_2026_excel_data.sql
 20260829012100_seed_2026_excel_rows.sql
 20260829012200_seed_2026_workbook_rows.sql
@@ -96,12 +98,18 @@ Nota:
     - Fungsi role dan RLS kewangan diselaraskan dengan migration kanonik.
 
 11. **R2 import + commit engine**
-    - `lib/imports/r2-overall-parser.ts` — two-pass parser Overall + Attendance.
+    - `lib/imports/r2-overall-parser.ts` — two-pass parser Overall + Attendance
+      (certified roster kiri + actual attendance Week 1/Week 2 kanan).
     - `lib/imports/r2-import.ts` — staging R2 rows.
     - `app/api/import/r2/route.ts` — upload R2 workbook.
     - `supabase/migrations/0010_r2_commit_engine.sql` — `commit_r2_batch()`
       (companies → programs → training_sessions → participant_counts).
-    - `app/api/import/r2/commit/route.ts` — commit R2 batch.
+    - `supabase/migrations/0012_r2_participant_roster_commit.sql` —
+      `commit_r2_roster()` (attendance → programs/sessions → participant_roster;
+      idempotent via `commit_key`, orphan attendance sessions flagged as
+      `R2_ATTENDANCE_SESSION_NOT_IN_OVERALL`).
+    - `app/api/import/r2/commit/route.ts` — commit R2: Overall dulu, kemudian
+      participant roster.
     - `participant_counts` kini menyokong `workshop_count` + `training_count`.
 
 12. **Skrin R1 & R2**
@@ -159,9 +167,6 @@ Nota:
 
 ## 5. Perkara yang masih perlu diikuti (bukan blocker repo)
 
-- `participant_roster` masih hanya di-*stage* (attendance list belum dipetakan
-  secara deterministik ke sesi); commit participant roster memerlukan mapping
-  yang lebih jelas daripada source workbook.
 - Skrin UI Reports, Settings, dan Data Quality resolve/ignore masih belum
   dibangunkan.
 - Setelah ada environment sebenar (jika ada), jalankan migrations mengikut

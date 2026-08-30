@@ -29,6 +29,10 @@ export interface R2AttendanceNormalized {
   full_name: string
   cert_no: string | null
   is_bumiputera: boolean
+  session_title: string | null
+  roster_group: 'left' | 'right' | null
+  week_label: 'week1' | 'week2' | null
+  participation_type: 'CERTIFIED' | 'ATTENDED'
 }
 
 export interface ParsedR2OverallRow {
@@ -270,27 +274,65 @@ export class R2AttendanceParser {
 
     const matrix = XLSX.utils.sheet_to_json<Cell[]>(sheet, { header: 1, defval: null, raw: true })
     // Rows 0-1 are title/header placeholders. Row index 2 contains the header.
+    // The sheet contains two side-by-side attendance tables; their titles live
+    // in row 0 (left = index 2, right = index 8).
+    const collapseTitle = (value: Cell): string | null => toText(value)?.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join(' ') ?? null
+    const leftTitle = collapseTitle(matrix[0]?.[2])
+    const rightTitle = collapseTitle(matrix[0]?.[8])
     const rows: ParsedR2AttendanceRow[] = []
     for (let rowIndex = 3; rowIndex < matrix.length; rowIndex += 1) {
       const cells = matrix[rowIndex] ?? []
       const rowNo = toNumber(cells[1])
-      const fullName = toText(cells[2])
-      const certNo = toText(cells[3])
-      const isBumiRaw = cells[4]
-      const isBumi = isBumiRaw != null && String(isBumiRaw).trim() !== ''
-        ? Number(toNumber(isBumiRaw) ?? 0) > 0
-        : false
-      if (!fullName) continue
+      const leftName = toText(cells[2])
+      const week1Name = toText(cells[8])
+      const week2Name = toText(cells[9])
+      const leftBumiRaw = cells[4]
+      const rightBumiRaw = cells[10]
+      const leftBumi = leftBumiRaw != null && String(leftBumiRaw).trim() !== '' ? Number(toNumber(leftBumiRaw) ?? 0) > 0 : false
+      const rightBumi = rightBumiRaw != null && String(rightBumiRaw).trim() !== '' ? Number(toNumber(rightBumiRaw) ?? 0) > 0 : false
 
-      rows.push({
-        source_row_number: rowIndex + 1,
-        raw_data: rowJson(['No', 'Name', 'Cert No', 'Bumi', 'Non-Bumi'], cells),
-        normalized_data: { row_no: rowNo ?? null, full_name: fullName, cert_no: certNo, is_bumiputera: isBumi },
-        row_hash: hash({ sheet: 'Attendance list', row: rowIndex + 1, full_name: fullName, cert_no: certNo, is_bumiputera: isBumi }),
-        validation_status: 'VALID',
-        error_message: null,
-        warning_message: null,
-      })
+      const pushAttendance = (
+        fullName: string,
+        certNo: string | null,
+        isBumi: boolean,
+        group: 'left' | 'right',
+        weekLabel: 'week1' | 'week2' | null,
+        participationType: 'CERTIFIED' | 'ATTENDED',
+      ) => {
+        rows.push({
+          source_row_number: rowIndex + 1,
+          raw_data: {
+            row_no: cells[1],
+            left_name: cells[2],
+            left_cert_no: cells[3],
+            left_bumi: cells[4],
+            left_non_bumi: cells[5],
+            right_row_no: cells[7],
+            right_week1_name: cells[8],
+            right_week2_name: cells[9],
+            right_bumi: cells[10],
+            right_non_bumi: cells[11],
+          } as unknown as Json,
+          normalized_data: {
+            row_no: rowNo ?? null,
+            full_name: fullName,
+            cert_no: certNo,
+            is_bumiputera: isBumi,
+            session_title: group === 'left' ? leftTitle : rightTitle,
+            roster_group: group,
+            week_label: weekLabel,
+            participation_type: participationType,
+          },
+          row_hash: hash({ sheet: 'Attendance list', row: rowIndex + 1, full_name: fullName, cert_no: certNo, is_bumiputera: isBumi, session_title: group === 'left' ? leftTitle : rightTitle, week_label: weekLabel, participation_type: participationType }),
+          validation_status: 'VALID',
+          error_message: null,
+          warning_message: null,
+        })
+      }
+
+      if (leftName) pushAttendance(leftName, toText(cells[3]), leftBumi, 'left', null, 'CERTIFIED')
+      if (week1Name) pushAttendance(week1Name, null, rightBumi, 'right', 'week1', 'ATTENDED')
+      if (week2Name) pushAttendance(week2Name, null, rightBumi, 'right', 'week2', 'ATTENDED')
     }
     return rows
   }

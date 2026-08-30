@@ -7,7 +7,7 @@
 ## Before deploy
 
 - [ ] Apply the canonical migrations from `supabase/migrations/` in filename order
-      (0001 → 0002 → 0003 → 0004 → 0005 → 0006 → 0008 → 0009 → 0010 → seeds).
+      (0001 → 0002 → 0003 → 0004 → 0005 → 0006 → 0008 → 0009 → 0010 → 0011 → 0012 → seeds).
 - [ ] Do **not** apply PR-#5 draft `0007` (`DROP COLUMN net_profit`). Use `0009`.
 - [ ] Confirm `current_user_role()` exists and role values in `public.profiles`
       are `super_admin` / `admin` / `manager` / `pic` / `viewer`.

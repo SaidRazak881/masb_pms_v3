@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { commitR2Batch } from '@/lib/imports/production-commit-service'
+import { commitR2Batch, commitR2Roster } from '@/lib/imports/production-commit-service'
 
 export const runtime = 'nodejs'
 
@@ -22,8 +22,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'BATCH_ID_REQUIRED' }, { status: 400 })
     }
 
-    const result = await commitR2Batch(body.batch_id, token)
-    return NextResponse.json({ data: result }, { status: 200 })
+    const overall = await commitR2Batch(body.batch_id, token)
+    const roster = await commitR2Roster(body.batch_id, token)
+    return NextResponse.json({ data: { ...overall, roster } }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'R2_COMMIT_FAILED'
     if (message.includes('AUTH_REQUIRED')) return NextResponse.json({ error: 'AUTH_REQUIRED' }, { status: 401 })

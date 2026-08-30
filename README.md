@@ -59,7 +59,7 @@ npm run build      # production build
 - `POST /api/import/invoices` — stage Invoice 2026
 - `POST /api/import/cost-of-sales` — stage Cost of Sales
 - `POST /api/import/r2` — stage R2 Overall + Attendance
-- `POST /api/import/r2/commit` — commit R2 batch (`commit_r2_batch`)
+- `POST /api/import/r2/commit` — commit R2 batch (`commit_r2_batch` → overall, `commit_r2_roster` → attendance/participant roster)
 - `POST /api/import/r3` — stage R3 funnel / office funnel / sales report
 - `POST /api/import/r3/commit` — commit R3 batch (`commit_r3_batch`)
 - `POST /api/import/batches` — create batch
@@ -98,6 +98,8 @@ Never place a `service_role`/secret key in any `NEXT_PUBLIC_*` variable.
 0008_restrict_financial_update_delete_rls.sql
 0009_safe_commit_engine_generated_net_profit.sql
 0010_r2_commit_engine.sql
+0011_r3_commit_engine.sql
+0012_r2_participant_roster_commit.sql
 0011_r3_commit_engine.sql
 20260829012000_seed_2026_excel_data.sql
 20260829012100_seed_2026_excel_rows.sql

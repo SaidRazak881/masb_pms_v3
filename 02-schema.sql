@@ -274,11 +274,13 @@ create table public.participant_counts (
   id uuid primary key default gen_random_uuid(),
   training_session_id uuid not null references public.training_sessions(id) on delete cascade,
   category participant_category not null default 'OTHERS',
-  bumiputera_count int not null default 0,
-  non_bumiputera_count int not null default 0,
-  total_count int generated always as (bumiputera_count + non_bumiputera_count) stored,
+  workshop_count int not null default 0 check (workshop_count >= 0),
+  training_count int not null default 0 check (training_count >= 0),
+  bumiputera_count int not null default 0 check (bumiputera_count >= 0),
+  non_bumiputera_count int not null default 0 check (non_bumiputera_count >= 0),
+  total_count int generated always as (workshop_count + training_count) stored,
   source_file text, source_sheet text, source_row int, row_hash text,
-  unique (training_session_id, category, source_file)
+  unique (training_session_id, category)
 );
 
 create table public.participant_roster (
@@ -287,7 +289,14 @@ create table public.participant_roster (
   full_name text not null,
   cert_no text,
   is_bumiputera boolean,
-  source_file text, source_sheet text, source_row int, row_hash text
+  participation_type text not null default 'CERTIFIED' check (participation_type in ('CERTIFIED','ATTENDED')),
+  week_label text check (week_label in ('week1','week2')),
+  attendance_date date,
+  commit_key text generated always as (
+    training_session_id::text || '|' || lower(full_name) || '|' || participation_type || '|' || coalesce(cert_no,'') || '|' || coalesce(week_label,'')
+  ) stored,
+  source_file text, source_sheet text, source_row int, row_hash text,
+  unique (commit_key)
 );
 
 -- ---------------------------------------------------------------------

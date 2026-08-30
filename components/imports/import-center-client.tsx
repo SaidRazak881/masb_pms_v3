@@ -110,6 +110,10 @@ export function ImportCenterClient({ batches: initialBatches, exceptions: initia
         if (result.ok) setMessage(`Resolution selesai: resolved=${(result.data as { resolved?: number } | undefined)?.resolved ?? '—'}`)
       } else if (action === 'r2-commit') {
         result = await postJson('/api/import/r2/commit', { batch_id: batchId })
+        if (result.ok) {
+          const audit = (result.data as { audit?: { checked_sessions?: number; created_exceptions?: number; mismatch_sessions?: number } } | undefined)?.audit
+          setMessage(`Commit R2 selesai. Roster audit: ${audit?.checked_sessions ?? '—'} sesi disemak, ${audit?.mismatch_sessions ?? '—'} mismatch, ${audit?.created_exceptions ?? '—'} exception baharu.`)
+        }
       } else if (action === 'r3-commit') {
         result = await postJson('/api/import/r3/commit', { batch_id: batchId })
       } else {

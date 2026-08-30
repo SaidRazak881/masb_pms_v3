@@ -34,6 +34,7 @@
 0010_r2_commit_engine.sql
 0011_r3_commit_engine.sql
 0012_r2_participant_roster_commit.sql
+0013_r2_roster_consistency_audit.sql
 20260829012000_seed_2026_excel_data.sql
 20260829012100_seed_2026_excel_rows.sql
 20260829012200_seed_2026_workbook_rows.sql
@@ -109,7 +110,10 @@ Nota:
       idempotent via `commit_key`, orphan attendance sessions flagged as
       `R2_ATTENDANCE_SESSION_NOT_IN_OVERALL`).
     - `app/api/import/r2/commit/route.ts` — commit R2: Overall dulu, kemudian
-      participant roster.
+      participant roster, kemudian `audit_r2_roster()`.
+    - `supabase/migrations/0013_r2_roster_consistency_audit.sql` —
+      semak count + demografi roster terhadap `participant_counts` dan cipta
+      `R2_ROSTER_COUNT_MISMATCH` / `R2_ROSTER_DEMOGRAPHIC_MISMATCH`.
     - `participant_counts` kini menyokong `workshop_count` + `training_count`.
 
 12. **Skrin R1 & R2**

@@ -6,18 +6,14 @@ import { usePathname } from 'next/navigation'
 import {
   Search,
   Bell,
-  Plus,
-  FileSpreadsheet,
-  Layers,
   ChevronRight,
   Menu,
   X,
-  Sparkles,
-  Shield,
   UploadCloud,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { NAV_SECTIONS } from '@/components/layout/sidebar'
+import { cn } from '@/lib/utils'
 
 export type EnterpriseTopbarProps = {
   userEmail?: string
@@ -47,13 +43,29 @@ export function EnterpriseTopbar({ userEmail, userRole }: EnterpriseTopbarProps)
   }
 
   return (
+    <>
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200/90 bg-white/95 px-4 backdrop-blur sm:px-6">
-      {/* Left: Breadcrumbs & Page title indicator */}
+      {/* Left: Mobile logo, Breadcrumbs & Page title indicator */}
       <div className="flex items-center gap-3 min-w-0">
+        {/* Mobile brand logo */}
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 lg:hidden"
+          aria-label="MIMOS Academy"
+        >
+          <img
+            src="/mimos-icon.svg"
+            alt="MIMOS Academy"
+            className="h-8 w-8 rounded-lg shadow-sm"
+          />
+          <span className="text-sm font-extrabold tracking-tight text-slate-900">MIMOS Academy</span>
+        </Link>
+
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+          aria-label="Buka menu navigasi"
         >
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -105,5 +117,61 @@ export function EnterpriseTopbar({ userEmail, userRole }: EnterpriseTopbarProps)
         </Link>
       </div>
     </header>
+
+    {/* Mobile navigation drawer (Slate-950 enterprise theme) */}
+    {mobileMenuOpen ? (
+      <div className="fixed inset-0 z-30 lg:hidden">
+        <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+        <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto border-r border-slate-800 bg-slate-950 p-4 text-slate-100 shadow-2xl">
+          <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
+            <img src="/mimos-icon.svg" alt="MIMOS Academy" className="h-10 w-10 rounded-lg shadow-md" />
+            <div>
+              <p className="text-sm font-bold text-white">MIMOS Academy</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                PMS · Enterprise R1/R2/R3
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-6">
+            {NAV_SECTIONS.map((group) => (
+              <div key={group.section}>
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {group.section}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon
+                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          'flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
+                          isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                        )}
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <Icon className="h-4 w-4 text-slate-400" />
+                          {item.title}
+                        </span>
+                        {item.badge ? (
+                          <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', isActive ? 'bg-white/20 text-white' : item.badgeTone ?? 'bg-slate-800 text-slate-300')}>
+                            {item.badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </nav>
+      </div>
+    ) : null}
+    </>
   )
 }

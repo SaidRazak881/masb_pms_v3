@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 84" width="100%" height="100%" fill="none">
+  <rect width="84" height="84" rx="12" fill="#8E1B84" />
+  <text x="42" y="29" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="3" text-anchor="middle">MIMOS</text>
+  <path d="M 8 84 C 8 44, 76 44, 76 84" stroke="#C8B8DB" stroke-width="4" fill="none" stroke-linecap="round" />
+  <path d="M 18 84 C 18 51, 66 51, 66 84" stroke="#DDD1EC" stroke-width="3.5" fill="none" stroke-linecap="round" />
+  <path d="M 28 84 C 28 59, 56 59, 56 84" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" />
+</svg>

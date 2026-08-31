@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, EDIT_ROLES, can } from '@/lib/rbac'
-import type { UserRole } from '@/types/database'
+import type { Row, UserRole } from '@/types/database'
 
 type EditableTable =
   | 'programs' | 'companies' | 'contacts' | 'quotations' | 'purchase_orders'
@@ -173,7 +173,7 @@ export async function updateEditableRecord(input: { table: EditableTable; id: st
   if (input.table === 'programs' && changes.current_stage && changes.current_stage !== existing.current_stage) {
     await supabase.from('pipeline_stage_history').insert({
       program_id: input.id,
-      stage: changes.current_stage,
+      stage: changes.current_stage as Row<'programs'>['current_stage'],
       changed_by: user.id,
       changed_at: new Date().toISOString(),
       is_override: true,
